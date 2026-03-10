@@ -20,7 +20,9 @@ const initCSRF = async () => {
 };
 
 export const apiFetch = async (endpoint: string, formData: FormData) => {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // Treat any origin that is NOT truckmitr.com as "external" — skip CSRF cookies & credentials
+    const isSameOrigin = window.location.hostname === 'truckmitr.com';
+    const isLocal = !isSameOrigin;
 
     const headers: Record<string, string> = {
         'Accept': 'application/json',

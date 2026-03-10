@@ -61,6 +61,17 @@ onMounted(() => {
     localStorage.removeItem(STORAGE_KEY)
   }
 
+  // ── AUTO-LOGIN: Skip login screen with a dummy Transporter user
+  if (!isLoggedIn.value) {
+    currentUser.value = {
+      name: 'Demo User',
+      mobile: '0000000000',
+      role: 'transporter',
+      tm_id: 'TM0000000000'
+    }
+    isLoggedIn.value = true
+  }
+
   // Set initial history state based on URL path
   let initialView = 'home'
   const path = window.location.pathname.replace(/^\/|\/$/g, '')
@@ -123,12 +134,11 @@ const handleBack = () => {
 
 <template>
   <div id="app">
-    <!-- Not logged in → Login screen -->
-    <Login v-if="!isLoggedIn" @login-success="handleLoginSuccess" />
+    <!-- Login screen commented out for demo/testing -->
+    <!-- <Login v-if="!isLoggedIn" @login-success="handleLoginSuccess" /> -->
 
     <!-- Logged in → Shared layout shell with content slot -->
     <AppLayout
-      v-else
       :user="currentUser"
       :current-view="currentView"
       @logout="handleLogout"
