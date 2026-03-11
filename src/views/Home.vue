@@ -23,8 +23,16 @@ const emit = defineEmits(['navigate'])
 const handleAction = (itemName: string) => {
   if (itemName === 'Add Jobs') {
     emit('navigate', 'add-job')
+  } else if (itemName === 'View Jobs') {
+    emit('navigate', 'view-jobs')
+  } else if (itemName === 'View Applications') {
+    emit('navigate', 'view-applications')
+  } else if (itemName === 'Add Driver') {
+    emit('navigate', 'add-driver')
+  } else if (itemName === 'Driver List') {
+    emit('navigate', 'driver-list')
   } else {
-    // For other tabs we haven't built yet, we could trigger a toast or navigate to standard Coming Soon
+    // For other tabs we haven't built yet
   }
 }
 

@@ -1,21 +1,33 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import Login from './views/Login.vue'
-import Welcome from './views/Welcome.vue'
+import Welcome from './views/Home.vue'
 import Dashboard from './views/Dashboard.vue'
 import AddJob from './views/AddJob.vue'
+import ViewJobs from './views/ViewJobs.vue'
+import ViewApplications from './views/ViewApplications.vue'
+import AddDriver from './views/AddDriver.vue'
+import DriverList from './views/DriverList.vue'
 import AppLayout from './components/AppLayout.vue'
 
 const STORAGE_KEY = 'truckmitr_user'
 
 const isLoggedIn = ref(false)
 const currentView = ref<string>('home')
+const viewHistory = ref<string[]>(['home'])
 const currentUser = ref<any>(null)
 
 // ── History API: push a state entry when navigating to a non-home view
 // so the browser ← back button works with real paths
 const navigateTo = (view: string) => {
   if (view !== currentView.value) {
+    // Manage history stack
+    if (view === 'home') {
+      viewHistory.value = ['home']
+    } else {
+      viewHistory.value.push(view)
+    }
+
     // Get URL-friendly role string (e.g. "transporter", "dhaba-shop")
     const roleNamespace = currentUser.value?.role 
       ? `/${currentUser.value.role.toLowerCase().replace(/\s+/g, '-')}` 
@@ -128,7 +140,25 @@ const handleNavigate = (view: string) => {
 }
 
 const handleBack = () => {
-  navigateTo('home')
+  if (viewHistory.value.length > 1) {
+    viewHistory.value.pop() // remove current
+    const prev = viewHistory.value[viewHistory.value.length - 1] as string
+    
+    // Update browser history seamlessly
+    const roleNamespace = currentUser.value?.role 
+      ? `/${currentUser.value.role.toLowerCase().replace(/\s+/g, '-')}` 
+      : ''
+      
+    if (prev !== 'home') {
+      history.pushState({ view: prev }, '', `${roleNamespace}/${prev}`)
+    } else {
+      history.pushState({ view: 'home' }, '', roleNamespace || '/')
+    }
+    
+    currentView.value = prev
+  } else {
+    navigateTo('home')
+  }
 }
 </script>
 
@@ -139,6 +169,7 @@ const handleBack = () => {
 
     <!-- Logged in → Shared layout shell with content slot -->
     <AppLayout
+      v-if="isLoggedIn && currentUser"
       :user="currentUser"
       :current-view="currentView"
       @logout="handleLogout"
@@ -162,6 +193,33 @@ const handleBack = () => {
       <AddJob
         v-else-if="currentView === 'add-job'"
         @back="handleBack"
+      />
+
+      <!-- View Jobs content -->
+      <ViewJobs
+        v-else-if="currentView === 'view-jobs'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <!-- View Applications content -->
+      <ViewApplications
+        v-else-if="currentView === 'view-applications'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <!-- Add Driver content -->
+      <AddDriver
+        v-else-if="currentView === 'add-driver'"
+        @back="handleBack"
+      />
+
+      <!-- Driver List content -->
+      <DriverList
+        v-else-if="currentView === 'driver-list'"
+        @back="handleBack"
+        @navigate="handleNavigate"
       />
 
       <!-- Placeholder for future views -->

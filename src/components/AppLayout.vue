@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import {
-  Truck,
   Home,
   LayoutDashboard,
   PlusCircle,
@@ -12,6 +11,7 @@ import {
   LogOut,
   ChevronRight,
 } from 'lucide-vue-next'
+import logoImg from '../assets/logo/logotrick.png'
 
 const props = defineProps<{
   user: {
@@ -25,6 +25,14 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['logout', 'navigate'])
+
+const mainContent = ref<HTMLElement | null>(null)
+
+watch(() => props.currentView, () => {
+  if (mainContent.value) {
+    mainContent.value.scrollTop = 0
+  }
+})
 
 const progressOffset = ref(138)
 onMounted(() => {
@@ -48,8 +56,7 @@ const navItems = [
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="logo">
-          <Truck class="logo-icon" :size="28" />
-          <span>Truckmitr</span>
+          <img :src="logoImg" alt="TruckMitr" class="logo-img" />
         </div>
       </div>
 
@@ -154,7 +161,7 @@ const navItems = [
       </header>
 
       <!-- SCROLLABLE CONTENT AREA (slot) -->
-      <main class="content-area">
+      <main class="content-area" ref="mainContent">
         <slot />
       </main>
     </div>
@@ -203,11 +210,14 @@ const navItems = [
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e40af;
-  letter-spacing: -0.5px;
+  justify-content: center;
+  width: 100%;
+}
+
+.logo-img {
+  height: 44px;
+  width: auto;
+  object-fit: contain;
 }
 
 .sidebar-nav {
