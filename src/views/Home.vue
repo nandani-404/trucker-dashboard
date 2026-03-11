@@ -31,6 +31,12 @@ const handleAction = (itemName: string) => {
     emit('navigate', 'add-driver')
   } else if (itemName === 'Driver List') {
     emit('navigate', 'driver-list')
+  } else if (itemName === 'Get Your Driver Verified') {
+    emit('navigate', 'verify-driver')
+  } else if (itemName === 'RC Check') {
+    emit('navigate', 'rc-check')
+  } else if (itemName === 'Challan Check') {
+    emit('navigate', 'challan-check')
   } else {
     // For other tabs we haven't built yet
   }

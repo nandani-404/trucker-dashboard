@@ -8,6 +8,11 @@ import ViewJobs from './views/ViewJobs.vue'
 import ViewApplications from './views/ViewApplications.vue'
 import AddDriver from './views/AddDriver.vue'
 import DriverList from './views/DriverList.vue'
+import VerifyDriver from './views/VerifyDriver.vue'
+import ContactUs from './views/ContactUs.vue'
+import RcCheck from './views/RcCheck.vue'
+import RcCheckResult from './views/RcCheckResult.vue'
+import ChallanCheck from './views/ChallanCheck.vue'
 import AppLayout from './components/AppLayout.vue'
 
 const STORAGE_KEY = 'truckmitr_user'
@@ -218,6 +223,40 @@ const handleBack = () => {
       <!-- Driver List content -->
       <DriverList
         v-else-if="currentView === 'driver-list'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <!-- Verify Driver content -->
+      <VerifyDriver
+        v-else-if="currentView === 'verify-driver'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <!-- Contact Us content -->
+      <ContactUs
+        v-else-if="currentView === 'contact-us'"
+        @back="handleBack"
+      />
+
+      <!-- RC Check content -->
+      <RcCheck
+        v-else-if="currentView === 'rc-check'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <!-- RC Check Result content -->
+      <RcCheckResult
+        v-else-if="currentView === 'rc-check-result'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <!-- Challan Check content -->
+      <ChallanCheck
+        v-else-if="currentView === 'challan-check'"
         @back="handleBack"
         @navigate="handleNavigate"
       />
