@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import Login from './views/Login.vue'
-import Welcome from './views/Home.vue'
-import Dashboard from './views/Dashboard.vue'
-import AddJob from './views/AddJob.vue'
-import ViewJobs from './views/ViewJobs.vue'
-import ViewApplications from './views/ViewApplications.vue'
-import AddDriver from './views/AddDriver.vue'
-import DriverList from './views/DriverList.vue'
+import { getAuthToken, clearAuthToken, clearUser } from './services/api'
+import Login from './views/auth/login/Login.vue'
+import Welcome from './views/main/Home.vue'
+import Dashboard from './views/main/Dashboard.vue'
+import AddJob from './views/main/AddJob.vue'
+import ViewJobs from './views/main/ViewJobs.vue'
+import ViewApplications from './views/main/ViewApplications.vue'
+import AddDriver from './views/main/AddDriver.vue'
+import DriverList from './views/main/DriverList.vue'
 import AppLayout from './components/AppLayout.vue'
 
 const STORAGE_KEY = 'truckmitr_user'
 
 const isLoggedIn = ref(false)
+// Login shown first when domain opens; dashboard after successful login
 const currentView = ref<string>('home')
 const viewHistory = ref<string[]>(['home'])
 const currentUser = ref<any>(null)
@@ -59,10 +61,11 @@ const handlePopState = (event: PopStateEvent) => {
 }
 
 onMounted(() => {
-  // ── Restore session from localStorage (persist login across refresh)
+  // ── Restore session from localStorage (bearer token + user) — persist login across refresh
+  const token = getAuthToken()
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
+    if (token && saved) {
       const parsed = JSON.parse(saved)
       if (parsed && parsed.mobile) {
         currentUser.value = parsed
@@ -73,31 +76,17 @@ onMounted(() => {
     localStorage.removeItem(STORAGE_KEY)
   }
 
-  // ── AUTO-LOGIN: Skip login screen with a dummy Transporter user
-  if (!isLoggedIn.value) {
-    currentUser.value = {
-      name: 'Demo User',
-      mobile: '0000000000',
-      role: 'transporter',
-      tm_id: 'TM0000000000'
-    }
-    isLoggedIn.value = true
-  }
-
   // Set initial history state based on URL path
-  let initialView = 'home'
+  let initialView = 'dashboard'
   const path = window.location.pathname.replace(/^\/|\/$/g, '')
-  // If the user lands on a specific valid path directly, keep it. Ignore /login or root.
   if (path && path !== 'login' && path !== 'index.html') {
     const parts = path.split('/')
-    // First segment is the role, remaining segments form the view name (e.g. "dashboard")
-    initialView = parts.length > 1 ? parts.slice(1).join('/') : 'home'
+    initialView = parts.length > 1 ? parts.slice(1).join('/') : 'dashboard'
   }
-  
+
   history.replaceState({ view: initialView }, '', window.location.href)
   window.addEventListener('popstate', handlePopState)
 
-  // Navigate to initial view if already logged in from localStorage
   if (isLoggedIn.value) {
     currentView.value = initialView
   }
@@ -117,12 +106,12 @@ const handleLoginSuccess = (user: any) => {
   currentUser.value = userData
   isLoggedIn.value = true
 
-  // ── Persist to localStorage
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(userData))
   } catch { /* storage full or unavailable */ }
 
-  navigateTo('home')
+  // Redirect to dashboard after successful login
+  navigateTo('dashboard')
 }
 
 const handleLogout = () => {
@@ -130,13 +119,19 @@ const handleLogout = () => {
   currentView.value = 'home'
   currentUser.value = null
 
-  // ── Clear persisted session
+  clearAuthToken()
+  clearUser()
   localStorage.removeItem(STORAGE_KEY)
   history.replaceState({ view: 'home' }, '', '/')
 }
 
 const handleNavigate = (view: string) => {
   navigateTo(view)
+}
+
+const handleNavigateSignup = () => {
+  // Signup view can be added when ready
+  console.log('Navigate to signup')
 }
 
 const handleBack = () => {
@@ -164,8 +159,11 @@ const handleBack = () => {
 
 <template>
   <div id="app">
-    <!-- Login screen commented out for demo/testing -->
-    <!-- <Login v-if="!isLoggedIn" @login-success="handleLoginSuccess" /> -->
+    <Login
+      v-if="!isLoggedIn"
+      @login-success="handleLoginSuccess"
+      @navigate-signup="handleNavigateSignup"
+    />
 
     <!-- Logged in → Shared layout shell with content slot -->
     <AppLayout
