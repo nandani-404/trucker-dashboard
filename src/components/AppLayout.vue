@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import {
   Home,
   LayoutDashboard,
@@ -10,7 +10,11 @@ import {
   Search,
   LogOut,
   ChevronRight,
+  Briefcase,
+  FileCheck,
 } from 'lucide-vue-next'
+import { apiGet } from '../services/api'
+import { END_POINTS, BASE_URL } from '../services/api'
 import logoImg from '../assets/logo/logotrick.png'
 
 const props = defineProps<{
@@ -19,35 +23,83 @@ const props = defineProps<{
     mobile: string;
     role: string;
     tm_id?: string;
+    unique_id?: string;
     [key: string]: any;
   };
-  currentView: string; // 'home' | 'dashboard'
+  currentView: string;
 }>()
 
 const emit = defineEmits(['logout', 'navigate'])
 
 const mainContent = ref<HTMLElement | null>(null)
+const profileData = ref<Record<string, unknown> | null>(null)
+
+const displayName = computed(() =>
+  (profileData.value?.name as string) || (profileData.value?.name_eng as string) || props.user?.name || 'User'
+)
+
+const displayTmId = computed(() =>
+  (profileData.value?.unique_id as string) || props.user?.unique_id || props.user?.tm_id || '—'
+)
+
+const profileCompletion = computed(() => {
+  const p = profileData.value?.profile_completion ?? profileData.value?.profile_required_fields_status
+  if (typeof p === 'number') return p
+  if (p === true) return 100
+  return 0
+})
+
+const profileImageUrl = computed(() => {
+  const img = profileData.value?.images ?? props.user?.images
+  if (!img) return ''
+  const path = String(img).startsWith('http') ? img : `${BASE_URL}public/${img}`
+  return path
+})
+
+const whatsappLink = computed(() =>
+  (profileData.value?.whatsapp_link as string) || (props.user?.whatsapp_link as string) || ''
+)
+
+const isDriver = computed(() =>
+  ['driver', 'foreman', 'association'].includes(String(props.user?.role || '').toLowerCase())
+)
+
+const circumference = 138
+const progressOffset = computed(() => circumference - (profileCompletion.value / 100) * circumference)
+
+const navItems = computed(() => {
+  if (isDriver.value) {
+    return [
+      { id: 'home', label: 'Home', icon: Home },
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'view-jobs', label: 'Available Jobs', icon: Briefcase },
+      { id: 'view-applications', label: 'Applied Jobs', icon: FileCheck },
+      { id: 'profile', label: 'Profile', icon: User },
+    ]
+  }
+  return [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'add-job', label: 'Add Job', icon: PlusCircle },
+    { id: 'view-jobs', label: 'View Job List', icon: ClipboardList },
+    { id: 'profile', label: 'Profile', icon: User },
+  ]
+})
 
 watch(() => props.currentView, () => {
-  if (mainContent.value) {
-    mainContent.value.scrollTop = 0
+  if (mainContent.value) mainContent.value.scrollTop = 0
+})
+
+onMounted(async () => {
+  try {
+    const res = await apiGet<{ status?: boolean; data?: Record<string, unknown> }>(END_POINTS.GET_PROFILE)
+    if (res?.status && res?.data) {
+      profileData.value = res.data
+    }
+  } catch {
+    // Use props.user as fallback
   }
 })
-
-const progressOffset = ref(138)
-onMounted(() => {
-  setTimeout(() => {
-    progressOffset.value = 94
-  }, 300)
-})
-
-const navItems = [
-  { id: 'home',      label: 'Home',         icon: Home },
-  { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
-  { id: 'add-job',   label: 'Add Job',      icon: PlusCircle },
-  { id: 'view-jobs', label: 'View Job List', icon: ClipboardList },
-  { id: 'profile',   label: 'Profile',      icon: User },
-]
 </script>
 
 <template>
@@ -94,12 +146,12 @@ const navItems = [
         <!-- Greeting -->
         <div class="greeting-box">
           <h1 class="greeting">
-            Welcome back, {{ user.name || 'User' }}
+            Hi, {{ displayName }}
             <span class="wave">👋</span>
           </h1>
           <div class="user-meta">
-            <span class="user-id">{{ user.tm_id || 'TM0000000000' }}</span>
-            <span class="user-role">Transporter</span>
+            <span class="user-id">{{ displayTmId }}</span>
+            <span class="user-role">{{ user.role || 'User' }}</span>
           </div>
         </div>
 
@@ -107,7 +159,7 @@ const navItems = [
         <div class="search-container">
           <div class="search-bar">
             <Search class="search-icon" :size="18" />
-            <input type="text" placeholder="Search Drivers (Name, ID, Phone)..." />
+            <input type="text" :placeholder="isDriver ? 'Search Jobs...' : 'Search Drivers (Name, ID, Phone)...'" />
           </div>
         </div>
 
@@ -126,14 +178,20 @@ const navItems = [
             Dashboard
           </button>
 
-          <button class="action-btn whatsapp-btn">
+          <a
+            v-if="whatsappLink"
+            :href="whatsappLink"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="action-btn whatsapp-btn"
+          >
             <img
               src="https://upload.wikimedia.org/wikipedia/commons/5/5e/WhatsApp_icon.png"
               class="btn-img-icon whatsapp-img"
               alt="WhatsApp"
             />
             Join WhatsApp
-          </button>
+          </a>
 
           <!-- Profile Ring / Logout -->
           <div
@@ -150,8 +208,9 @@ const navItems = [
               />
             </svg>
             <div class="avatar-inner">
-              <User :size="28" color="#1e40af" />
-              <div class="avatar-badge">32%</div>
+              <img v-if="profileImageUrl" :src="profileImageUrl" alt="Profile" class="avatar-img" />
+              <User v-else :size="28" color="#1e40af" />
+              <div class="avatar-badge">{{ profileCompletion }}%</div>
             </div>
             <div class="logout-overlay">
               <LogOut :size="20" color="#ffffff" />
@@ -475,6 +534,13 @@ const navItems = [
   transition: stroke-dashoffset 1s cubic-bezier(0.1, 0.7, 0.1, 1);
 }
 
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .avatar-inner {
   position: absolute;
   top: 50%; left: 50%;
@@ -485,6 +551,7 @@ const navItems = [
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
 }
 
 .avatar-badge {

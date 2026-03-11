@@ -14,7 +14,7 @@ const step = ref(1)
 const loading = ref(false)
 const errorMessage = ref('')
 
-const emit = defineEmits(['login-success', 'navigate-signup'])
+const emit = defineEmits(['login-success', 'navigate-signup', 'back'])
 
 // Validate mobile (same as RN: check not empty)
 const validateMobile = (): boolean => {
@@ -135,10 +135,15 @@ const clearError = () => {
 const goToSignup = () => {
   emit('navigate-signup')
 }
+
+const handleBack = () => {
+  emit('back')
+}
 </script>
 
 <template>
   <div class="login-container">
+    <button type="button" class="back-to-home" @click="handleBack">← Back</button>
     <div class="glass-card">
       <div class="card-header">
         <h2>Welcome to TruckMitr</h2>
@@ -233,7 +238,9 @@ const goToSignup = () => {
 }
 
 .login-container {
+  position: relative;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
@@ -242,6 +249,21 @@ const goToSignup = () => {
   background: #ffffff;
   margin: 0;
   padding: 20px;
+}
+
+.back-to-home {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.back-to-home:hover {
+  color: #111827;
 }
 
 .glass-card {

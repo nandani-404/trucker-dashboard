@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { getAuthToken, clearAuthToken, clearUser } from './services/api'
+import { getAuthToken, getUser, clearAuthToken, clearUser } from './services/api'
+import Landing from './views/landing/Landing.vue'
 import Login from './views/auth/login/Login.vue'
-import Welcome from './views/main/Home.vue'
+import ModuleSelection from './views/auth/moduleSelection/index.vue'
+import Signup from './views/auth/signup/signup.vue'
+import ProfileCompletion from './views/auth/profile_completion/index.vue'
+import Welcome from './views/main/home/Home.vue'
 import Dashboard from './views/main/Dashboard.vue'
 import AddJob from './views/main/AddJob.vue'
 import ViewJobs from './views/main/ViewJobs.vue'
@@ -14,7 +18,9 @@ import AppLayout from './components/AppLayout.vue'
 const STORAGE_KEY = 'truckmitr_user'
 
 const isLoggedIn = ref(false)
-// Login shown first when domain opens; dashboard after successful login
+const showProfileCompletion = ref(false)
+// Auth flow: landing → login (on click) | module-selection | signup
+const authScreen = ref<'landing' | 'login' | 'module-selection' | 'signup'>('landing')
 const currentView = ref<string>('home')
 const viewHistory = ref<string[]>(['home'])
 const currentUser = ref<any>(null)
@@ -129,9 +135,51 @@ const handleNavigate = (view: string) => {
   navigateTo(view)
 }
 
+const handleLandingLogin = () => {
+  authScreen.value = 'login'
+}
+
 const handleNavigateSignup = () => {
-  // Signup view can be added when ready
-  console.log('Navigate to signup')
+  authScreen.value = 'module-selection'
+}
+
+const handleModuleBack = () => {
+  authScreen.value = 'login'
+}
+
+const signupPreSelectedRole = ref<string>('driver')
+
+const handleModuleContinue = (roleId: string, _module: string) => {
+  signupPreSelectedRole.value = roleId
+  authScreen.value = 'signup'
+}
+
+const handleSignupBack = () => {
+  authScreen.value = 'module-selection'
+}
+
+const handleSignupComplete = () => {
+  // OTP verified; user is logged in → show profile completion → then home
+  const userData = getUser() as Record<string, unknown> | null
+  if (userData && userData.mobile) {
+    currentUser.value = {
+      name: (userData.name as string) || 'User',
+      mobile: userData.mobile as string,
+      role: (userData.role as string) || 'User',
+      ...userData,
+    }
+    isLoggedIn.value = true
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+    authScreen.value = 'login'
+    showProfileCompletion.value = true
+  } else {
+    authScreen.value = 'login'
+  }
+}
+
+const handleProfileComplete = () => {
+  showProfileCompletion.value = false
+  navigateTo('home')
 }
 
 const handleBack = () => {
@@ -159,15 +207,36 @@ const handleBack = () => {
 
 <template>
   <div id="app">
+    <Landing
+      v-if="!isLoggedIn && authScreen === 'landing'"
+      @login="handleLandingLogin"
+    />
     <Login
-      v-if="!isLoggedIn"
+      v-else-if="!isLoggedIn && authScreen === 'login'"
       @login-success="handleLoginSuccess"
       @navigate-signup="handleNavigateSignup"
+      @back="authScreen = 'landing'"
+    />
+    <ModuleSelection
+      v-else-if="!isLoggedIn && authScreen === 'module-selection'"
+      @back="handleModuleBack"
+      @role-selected="handleModuleContinue"
+    />
+    <Signup
+      v-else-if="!isLoggedIn && authScreen === 'signup'"
+      :pre-selected-role="signupPreSelectedRole"
+      @back="handleSignupBack"
+      @signup-complete="handleSignupComplete"
     />
 
-    <!-- Logged in → Shared layout shell with content slot -->
+    <!-- Logged in → Profile completion (after signup) or main app -->
+    <ProfileCompletion
+      v-if="isLoggedIn && showProfileCompletion && currentUser"
+      :user="currentUser"
+      @complete="handleProfileComplete"
+    />
     <AppLayout
-      v-if="isLoggedIn && currentUser"
+      v-else-if="isLoggedIn && currentUser && !showProfileCompletion"
       :user="currentUser"
       :current-view="currentView"
       @logout="handleLogout"
@@ -271,5 +340,39 @@ html, body, #app {
 .coming-soon-inner p {
   font-size: 14px;
   font-family: 'Inter', sans-serif;
+}
+
+.auth-placeholder {
+  min-height: 100vh;
+  padding: 20px;
+  font-family: system-ui, sans-serif;
+}
+
+.auth-placeholder .back-btn {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: #333;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.auth-placeholder-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.auth-placeholder-inner h2 {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.auth-placeholder-inner p {
+  color: #666;
+  font-size: 14px;
 }
 </style>
