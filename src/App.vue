@@ -46,6 +46,22 @@ const authStore = useAuthStore()
 const userStore = useUserStore()
 const appStore = useAppStore()
 
+// Restore auth synchronously before first render so protected routes never flash
+authStore.hydrateFromStorage()
+try {
+  const saved = localStorage.getItem(STORAGE_KEY)
+  const token = authStore.token
+  if (token && saved) {
+    const parsed = JSON.parse(saved)
+    if (parsed && parsed.mobile) {
+      userStore.setUser(parsed)
+      authStore.setAuthenticated(true)
+    }
+  }
+} catch {
+  localStorage.removeItem(STORAGE_KEY)
+}
+
 const isLoggedIn = computed(() => userStore.isAuthenticated)
 const currentUser = computed(() => userStore.user)
 const layoutUser = computed(() => ({
@@ -80,7 +96,18 @@ const navigateTo = (view: string, replace = false) => {
   }
 }
 
+const isAuthPath = (path: string) =>
+  !path || path === 'login' || path === 'index.html' || path === 'signup' || path === 'module-selection'
+
 const handlePopState = (event: PopStateEvent) => {
+  if (!userStore.isAuthenticated) {
+    const pathPart = window.location.pathname.replace(/^\/|\/$/g, '')
+    if (!isAuthPath(pathPart)) {
+      history.replaceState({}, '', '/login')
+      appStore.setAuthScreen('login')
+      return
+    }
+  }
   let view = event.state?.view
   if (!view) {
     const pathPart = window.location.pathname.replace(/^\/|\/$/g, '')
@@ -95,33 +122,19 @@ const handlePopState = (event: PopStateEvent) => {
 }
 
 onMounted(() => {
-  authStore.hydrateFromStorage()
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    const token = authStore.token
-    if (token && saved) {
-      const parsed = JSON.parse(saved)
-      if (parsed && parsed.mobile) {
-        userStore.setUser(parsed)
-        authStore.setAuthenticated(true)
-      }
-    }
-  } catch {
-    localStorage.removeItem(STORAGE_KEY)
-  }
-
   let initialView = 'home'
   const path = window.location.pathname.replace(/^\/|\/$/g, '')
-  const isAuthPath = !path || path === 'login' || path === 'index.html' || path === 'signup' || path === 'module-selection'
 
   if (path && path !== 'login' && path !== 'index.html') {
     const parts = path.split('/')
     initialView = parts.length > 1 ? parts.slice(1).join('/') : 'home'
   }
 
-  if (!isLoggedIn.value && !isAuthPath) {
-    // Unauthenticated user tried to access protected route - fix URL to /login
-    history.replaceState({}, '', '/login')
+  if (!isLoggedIn.value && !isAuthPath(path)) {
+    // Unauthenticated user tried to access protected route - redirect to login
+    appStore.setAuthScreen('login')
+    window.location.replace('/login')
+    return
   } else if (isLoggedIn.value) {
     // Logged in: ensure URL is domain/role/home or domain/role/view
     const roleNamespace = userStore.user?.role
