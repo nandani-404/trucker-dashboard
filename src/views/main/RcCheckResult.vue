@@ -468,7 +468,7 @@ const handleCheckAnother = () => emit('back')
 
 .list-item {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
   padding: 16px 0;
   border-bottom: 1px solid #f1f5f9;
@@ -484,15 +484,16 @@ const handleCheckAnother = () => emit('back')
   color: #64748b;
   font-size: 14px;
   font-weight: 500;
-  flex: 1;
+  width: 140px;
+  flex-shrink: 0;
 }
 
 .list-item .value {
   color: #334155;
   font-size: 15px;
   font-weight: 500;
-  text-align: right;
-  flex: 1.5;
+  text-align: left;
+  flex: 1;
   word-break: break-word;
 }
 

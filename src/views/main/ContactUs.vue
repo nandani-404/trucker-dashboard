@@ -22,20 +22,19 @@ const handleCallback = () => {
 </script>
 
 <template>
-  <div class="contact-master">
-    <!-- Header Area (Web Style) -->
-    <header class="page-header">
-      <button class="icon-back-btn" @click="emit('back')" title="Go Back">
-        <ChevronLeft :size="20" />
-      </button>
-      <div class="header-titles">
-        <h1 class="main-title">Contact Us</h1>
-        <p class="sub-title">We are here to help. Reach out to our support team.</p>
-      </div>
-    </header>
-
     <!-- Scrollable Content Layout (Web) -->
     <div class="contact-content-area">
+      <!-- Header Area (Web Style) -->
+      <header class="page-header">
+        <button class="icon-back-btn" @click="emit('back')" title="Go Back">
+          <ChevronLeft :size="20" />
+        </button>
+        <div class="header-titles">
+          <h1 class="main-title">Contact Us</h1>
+          <p class="sub-title">We are here to help. Reach out to our support team.</p>
+        </div>
+      </header>
+
       <div class="web-content-container">
 
         <!-- Top Banner -->
@@ -104,7 +103,6 @@ const handleCallback = () => {
         </div>
 
       </div>
-    </div>
 
     <!-- Solid Blue Footer -->
     <footer class="contact-footer">
@@ -120,15 +118,15 @@ const handleCallback = () => {
 
 * { box-sizing: border-box; }
 
-.contact-master {
+.contact-content-area {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #ffffff; /* Fit with rest of dashboard */
+  background-color: #ffffff;
   font-family: 'Inter', sans-serif;
   color: #0f172a;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
   padding: 40px;
 }
 
@@ -176,13 +174,9 @@ const handleCallback = () => {
 }
 
 /* Content Area */
-.contact-content-area {
-  flex: 1;
-  overflow-y: auto;
-}
-
 .web-content-container {
   max-width: 1000px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

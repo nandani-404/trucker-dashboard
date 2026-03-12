@@ -1,48 +1,101 @@
 <script setup lang="ts">
-import { 
-  Briefcase, 
-  Users, 
-  Car, 
-  MessageSquare, 
+import { ref, computed, onMounted } from 'vue'
+import {
+  Briefcase,
+  Users,
+  Car,
+  MessageSquare,
   Clock,
-  ChevronRight
+  ChevronRight,
+  GraduationCap,
+  ShieldCheck
 } from 'lucide-vue-next'
+import { apiGet } from '../../../services/api'
+import { END_POINTS, BASE_URL } from '../../../services/api'
 
-defineProps<{
+const props = defineProps<{
   user: {
-    name: string;
-    mobile: string;
-    role: string;
-    tm_id?: string;
-    [key: string]: any;
+    name: string
+    mobile: string
+    role: string
+    tm_id?: string
+    unique_id?: string
+    [key: string]: unknown
   }
 }>()
 
 const emit = defineEmits(['navigate'])
 
-const handleAction = (itemName: string) => {
-  if (itemName === 'Add Jobs') {
-    emit('navigate', 'add-job')
-  } else if (itemName === 'View Jobs') {
-    emit('navigate', 'view-jobs')
-  } else if (itemName === 'View Applications') {
-    emit('navigate', 'view-applications')
-  } else if (itemName === 'Add Driver') {
-    emit('navigate', 'add-driver')
-  } else if (itemName === 'Driver List') {
-    emit('navigate', 'driver-list')
-  } else if (itemName === 'Get Your Driver Verified') {
-    emit('navigate', 'verify-driver')
-  } else if (itemName === 'RC Check') {
-    emit('navigate', 'rc-check')
-  } else if (itemName === 'Challan Check') {
-    emit('navigate', 'challan-check')
-  } else {
-    // For other tabs we haven't built yet
+const profileData = ref<Record<string, unknown> | null>(null)
+const banners = ref<{ media_url?: string; media_type?: string; redirect_link?: string }[]>([])
+const bannerIndex = ref(0)
+
+const isDriver = computed(() =>
+  ['driver', 'foreman', 'association'].includes(String(props.user?.role || '').toLowerCase())
+)
+
+const displayName = computed(() =>
+  (profileData.value?.name as string) || (profileData.value?.name_eng as string) || props.user?.name || 'User'
+)
+
+onMounted(async () => {
+  try {
+    const [profileRes, bannersRes] = await Promise.all([
+      apiGet<{ status?: boolean; data?: Record<string, unknown> }>(END_POINTS.GET_PROFILE),
+      apiGet<{ status?: boolean; data?: { media_url?: string; media_type?: string; redirect_link?: string }[] }>(END_POINTS.TRUCKMITRBANNERS),
+    ])
+    if (profileRes?.status && profileRes?.data) {
+      profileData.value = profileRes.data
+    }
+    if (bannersRes?.status && Array.isArray(bannersRes?.data)) {
+      const raw = bannersRes.data as { media_type?: string; media_url?: string; redirect_link?: string; user_type?: string }[]
+      const imageBanners = raw.filter((b) => {
+        if (b.media_type !== 'image') return false
+        if (b.user_type === 'driver' && !isDriver.value) return false
+        if (b.user_type === 'transporter' && isDriver.value) return false
+        return !!(b.media_url || b.redirect_link)
+      })
+      if (imageBanners.length > 0) banners.value = imageBanners
+    }
+  } catch {
+    // Use props.user as fallback
   }
+})
+
+const handleAction = (itemName: string) => {
+  const map: Record<string, string> = {
+    'Add Jobs': 'add-job',
+    'View Jobs': 'view-jobs',
+    'View Applications': 'view-applications',
+    'Add Driver': 'add-driver',
+    'Driver List': 'driver-list',
+    'Get Your Driver Verified': 'verify-driver',
+    'RC Check': 'rc-check',
+    'Challan Check': 'challan-check',
+    'Invite Driver for a Job': 'driver-invites',
+    'Video Interview': 'video-interview',
+    'TM Load Mandal': 'tm-load-mandal',
+    'Fuel Discount': 'fuel-discount',
+    'Transporter Tailored Loan': 'transporter-loan',
+    'Truck Insurance': 'truck-insurance',
+    'Second Hand Truck Marketplace': 'truck-marketplace',
+    'All Available Jobs': 'view-jobs',
+    'Applied Jobs': 'view-applications',
+    'Jobs That Suit You': 'view-jobs',
+    'Training Video': 'dashboard',
+    'Health & Hygiene Video': 'dashboard',
+    'Quiz Result & Certificate': 'dashboard',
+    'Get ID Check': 'dashboard',
+    'Get Court Check': 'dashboard',
+    'Get Digital Address Check': 'dashboard',
+    'Job Invite by Transporter': 'dashboard',
+    'Call Job Manager': 'dashboard',
+  }
+  const view = map[itemName]
+  if (view) emit('navigate', view)
 }
 
-const sections = [
+const transporterSections = [
   {
     title: 'Jobs Management',
     icon: Briefcase,
@@ -50,7 +103,7 @@ const sections = [
       { name: 'Add Jobs', desc: 'Create new job requirements.', image: 'https://cdn-icons-png.flaticon.com/512/11231/11231532.png' },
       { name: 'View Jobs', desc: 'Monitor active job listings.', image: 'https://cdn-icons-png.flaticon.com/512/2966/2966773.png' },
       { name: 'View Applications', desc: 'Review candidate profiles.', image: 'https://cdn-icons-png.flaticon.com/512/11651/11651437.png' },
-    ]
+    ],
   },
   {
     title: 'Driver Management',
@@ -59,7 +112,7 @@ const sections = [
       { name: 'Add Driver', desc: 'Onboard new drivers.', image: 'https://cdn-icons-png.flaticon.com/512/6008/6008817.png' },
       { name: 'Driver List', desc: 'Access driver database.', image: 'https://cdn-icons-png.flaticon.com/512/6012/6012282.png' },
       { name: 'Get Your Driver Verified', desc: 'Fast document checks.', image: 'https://cdn-icons-png.flaticon.com/512/837/837732.png' },
-    ]
+    ],
   },
   {
     title: 'Vehicle Verification',
@@ -67,7 +120,7 @@ const sections = [
     items: [
       { name: 'RC Check', desc: 'Verify vehicle certificates.', image: 'https://cdn-icons-png.flaticon.com/512/3097/3097180.png' },
       { name: 'Challan Check', desc: 'Check traffic violations.', image: 'https://cdn-icons-png.flaticon.com/512/1584/1584961.png' },
-    ]
+    ],
   },
   {
     title: 'Communication',
@@ -75,7 +128,7 @@ const sections = [
     items: [
       { name: 'Invite Driver for a Job', desc: 'Send job invitations.', image: 'https://cdn-icons-png.flaticon.com/512/6003/6003724.png' },
       { name: 'Video Interview', desc: 'Conduct virtual interviews.', image: 'https://cdn-icons-png.flaticon.com/512/1256/1256650.png' },
-    ]
+    ],
   },
   {
     title: 'Coming Soon',
@@ -87,34 +140,121 @@ const sections = [
       { name: 'Truck Insurance', desc: 'Protect your fleet.', emoji: '🛡️' },
       { name: 'Second Hand Truck Marketplace', desc: 'Trade reliable vehicles.', emoji: '🚛' },
       { name: 'Fleet Management System', desc: 'Complete operational control.', emoji: '📊' },
-    ]
-  }
+    ],
+  },
 ]
+
+const driverSections = [
+  {
+    title: 'Jobs',
+    icon: Briefcase,
+    items: [
+      { name: 'All Available Jobs', desc: 'Browse and apply for jobs.', image: 'https://cdn-icons-png.flaticon.com/512/3281/3281289.png' },
+      { name: 'Applied Jobs', desc: 'Track your applications.', image: 'https://cdn-icons-png.flaticon.com/512/11651/11651437.png' },
+      { name: 'Jobs That Suit You', desc: 'Personalized job matches.', image: 'https://cdn-icons-png.flaticon.com/512/2966/2966773.png' },
+    ],
+  },
+  {
+    title: 'Training & Certificate',
+    icon: GraduationCap,
+    items: [
+      { name: 'Training Video', desc: 'Learn and grow.', image: 'https://cdn-icons-png.flaticon.com/512/11825/11825158.png' },
+      { name: 'Health & Hygiene Video', desc: 'Stay safe on the road.', image: 'https://cdn-icons-png.flaticon.com/512/2382/2382461.png' },
+      { name: 'Quiz Result & Certificate', desc: 'View your certificates.', image: 'https://cdn-icons-png.flaticon.com/512/9913/9913576.png' },
+    ],
+  },
+  {
+    title: 'Get Verified',
+    icon: ShieldCheck,
+    items: [
+      { name: 'Get ID Check', desc: 'Verify your identity.', image: 'https://cdn-icons-png.flaticon.com/512/1077/1077063.png' },
+      { name: 'Get Court Check', desc: 'Background verification.', image: 'https://cdn-icons-png.flaticon.com/512/4052/4052984.png' },
+      { name: 'Get Digital Address Check', desc: 'Address verification.', image: 'https://cdn-icons-png.flaticon.com/512/3649/3649460.png' },
+    ],
+  },
+  {
+    title: 'Communication',
+    icon: MessageSquare,
+    items: [
+      { name: 'Job Invite by Transporter', desc: 'View job invitations.', image: 'https://cdn-icons-png.flaticon.com/512/6003/6003724.png' },
+      { name: 'Call Job Manager', desc: 'Get support.', image: 'https://cdn-icons-png.flaticon.com/512/724/724664.png' },
+    ],
+  },
+  {
+    title: 'Vehicle Verification',
+    icon: Car,
+    items: [
+      { name: 'RC Check', desc: 'Verify vehicle documents.', image: 'https://cdn-icons-png.flaticon.com/512/3097/3097180.png' },
+      { name: 'Challan Check', desc: 'Check traffic challans.', image: 'https://cdn-icons-png.flaticon.com/512/1584/1584961.png' },
+    ],
+  },
+  {
+    title: 'Coming Soon',
+    icon: Clock,
+    items: [
+      { name: 'TM Load Mandal', desc: 'Find load matches.', image: 'https://cdn-icons-png.flaticon.com/512/2271/2271113.png' },
+      { name: 'Fuel Discount', desc: 'Save on fuel costs.', image: 'https://cdn-icons-png.flaticon.com/512/2311/2311324.png' },
+      { name: 'Transporter Tailored Loan', desc: 'Growth for your business.', emoji: '💰' },
+      { name: 'Truck Insurance', desc: 'Secure your fleet.', emoji: '🛡️' },
+      { name: 'Driver Trip Wallet', desc: 'Manage trip earnings.', image: 'https://cdn-icons-png.flaticon.com/512/855/855279.png' },
+      { name: 'TruckMitr Dhaba', desc: 'Food and rest stops.', image: 'https://cdn-icons-png.flaticon.com/512/1046/1046857.png' },
+      { name: 'TruckMitr Suvidha Kendra', desc: 'Support centers.', emoji: '🏢' },
+      { name: 'TruckMitr Driver Loan', desc: 'Financial support.', image: 'https://cdn-icons-png.flaticon.com/512/2489/2489756.png' },
+    ],
+  },
+]
+
+const sections = computed(() => (isDriver.value ? driverSections : transporterSections))
+
+const bannerImageUrl = computed(() => {
+  const b = banners.value[bannerIndex.value]
+  if (!b?.media_url) return ''
+  return `${BASE_URL}public${b.media_url}`
+})
 </script>
 
 <template>
-  <!-- Only the scrollable body — layout shell is AppLayout in App.vue -->
   <div class="dashboard-body">
-
-    <!-- Classic Banner -->
+    <!-- Banner from API or fallback -->
     <section class="banner-section">
+      <div v-if="bannerImageUrl" class="banner-image-wrapper">
+        <img :src="bannerImageUrl" alt="Banner" class="banner-image" />
+        <div class="banner-overlay" />
+      </div>
       <div class="banner-content">
-        <div class="banner-tag">Enterprise HR Solution</div>
-        <h2 class="banner-title">Hiring Made Simple (2026)</h2>
-        <p class="banner-subtitle">Precision driver management. No confusion. No guesswork.</p>
-        <button class="post-job-btn" @click="emit('navigate', 'add-job')">Post a Job Now</button>
+        <div class="banner-tag">{{ isDriver ? 'Driver Portal' : 'Enterprise HR Solution' }}</div>
+        <h2 class="banner-title">
+          {{ isDriver ? `Hi, ${displayName}` : 'Hiring Made Simple (2026)' }}
+        </h2>
+        <p class="banner-subtitle">
+          {{ isDriver ? 'Find jobs, get verified, and grow your career.' : 'Precision driver management. No confusion. No guesswork.' }}
+        </p>
+        <button
+          v-if="!isDriver"
+          class="post-job-btn"
+          @click="emit('navigate', 'add-job')"
+        >
+          Post a Job Now
+        </button>
+        <button
+          v-else
+          class="post-job-btn"
+          @click="emit('navigate', 'view-jobs')"
+        >
+          Browse Jobs
+        </button>
       </div>
       <div class="banner-graphics">
-        <div class="geometric-shape shape-1"></div>
-        <div class="geometric-shape shape-2"></div>
+        <div class="geometric-shape shape-1" />
+        <div class="geometric-shape shape-2" />
       </div>
     </section>
 
-    <!-- Categories and Cards -->
+    <!-- Sections (web-style cards) -->
     <div class="sections-container">
-      <section 
-        v-for="(section, index) in sections" 
-        :key="index" 
+      <section
+        v-for="(section, index) in sections"
+        :key="index"
         class="feature-category"
       >
         <div class="category-header">
@@ -122,12 +262,12 @@ const sections = [
             <component :is="section.icon" :size="20" color="#1e40af" />
           </div>
           <h3 class="category-title">{{ section.title }}</h3>
-          <div class="category-line"></div>
+          <div class="category-line" />
         </div>
-        
+
         <div class="grid-container">
-          <div 
-            v-for="(item, i) in section.items" 
+          <div
+            v-for="(item, i) in section.items"
             :key="i"
             class="feature-card"
             @click="handleAction(item.name)"
@@ -145,7 +285,6 @@ const sections = [
         </div>
       </section>
     </div>
-
   </div>
 </template>
 
@@ -170,7 +309,6 @@ const sections = [
   font-family: 'Inter', sans-serif;
 }
 
-/* Banner section */
 .banner-section {
   display: flex;
   justify-content: space-between;
@@ -183,6 +321,25 @@ const sections = [
   position: relative;
   overflow: hidden;
   box-shadow: 0 20px 40px -10px rgba(30,58,138,0.3);
+}
+
+.banner-image-wrapper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.banner-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.4;
+}
+
+.banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(30,58,138,0.85), rgba(15,23,42,0.9));
 }
 
 .banner-content {
@@ -249,7 +406,6 @@ const sections = [
 .shape-1 { width: 300px; height: 300px; right: -50px;  top: -100px;   }
 .shape-2 { width: 200px; height: 200px; right: 150px;  bottom: -50px; }
 
-/* Sections */
 .sections-container {
   display: flex;
   flex-direction: column;

@@ -1,15 +1,34 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { 
   ArrowLeft, FileText, 
   CheckCircle2, Clock, AlertTriangle, 
-  Search, Info, Check, Shield
+  Search, Info, Check, Shield, X
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['back', 'navigate'])
 
+const vehicleNumber = ref('')
+const isLoading = ref(false)
+const showInputModal = ref(false)
+
 const handleCheckChallan = () => {
-  // Mock API Call or open modal
-  alert("Challan check process initiated over mock API.");
+  showInputModal.value = true
+}
+
+const verifyChallan = () => {
+  if (!vehicleNumber.value.trim()) return
+
+  isLoading.value = true
+  // Mock API Call
+  setTimeout(() => {
+    isLoading.value = false
+    showInputModal.value = false
+    // For now, reload or show a success message. 
+    // If there was a challan-result view, we'd navigate there.
+    emit('navigate', 'challan-check-result')
+    vehicleNumber.value = ''
+  }, 1500)
 }
 
 </script>
@@ -125,6 +144,50 @@ const handleCheckChallan = () => {
         <button class="brand-btn" @click="handleCheckChallan">
           <Search :size="18" /> Check Vehicle Challan
         </button>
+      </div>
+    </div>
+
+    <!-- Modal: Input Vehicle Number (Centered) -->
+    <div v-if="showInputModal" class="modal-overlay" @click.self="!isLoading && (showInputModal = false)">
+      <div class="modal-content-center scale-up">
+        <div class="modal-header">
+          <h3>Challan Verification</h3>
+          <button v-if="!isLoading" class="close-btn-minimal" @click="showInputModal = false">
+            <X :size="24" />
+          </button>
+        </div>
+
+        <div v-if="isLoading" class="loading-state-centered">
+          <div class="spinner-large"></div>
+          <h4>Verifying details...</h4>
+          <p>Please wait, this may take a moment</p>
+        </div>
+
+        <div v-else class="input-form-stack">
+          <label class="input-label">Enter Vehicle Number</label>
+          <input 
+            v-model="vehicleNumber" 
+            type="text" 
+            placeholder="MH12AB1234" 
+            class="mobile-input-field"
+            style="text-transform: uppercase;"
+            maxlength="10"
+          />
+          
+          <div class="info-help-row">
+            <Info :size="16" class="info-icon-gray" />
+            <p>Please enter the vehicle number correctly</p>
+          </div>
+          
+          <button 
+            class="verify-action-btn" 
+            :class="{ 'btn-disabled': !vehicleNumber.trim() }"
+            :disabled="!vehicleNumber.trim()"
+            @click="verifyChallan"
+          >
+            Verify Challan
+          </button>
+        </div>
       </div>
     </div>
 
@@ -561,4 +624,178 @@ const handleCheckChallan = () => {
   .subs-right { align-items: center; width: 100%; }
   .security-horizontal-banner { flex-direction: column; text-align: center; gap: 16px; padding: 24px; }
 }
+
+/* Modal / Bottom Sheet Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4); 
+  display: flex;
+  align-items: center; /* Centered */
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(12px); /* Stronger Blur */
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.modal-content-center {
+  background: #ffffff;
+  width: 90%;
+  max-width: 460px;
+  border-radius: 24px; /* Full rounded corners */
+  padding: 32px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  position: relative;
+}
+
+.scale-up {
+  animation: scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #001F3F; /* Matching color: '#001F3F' */
+}
+
+.close-btn-minimal {
+  background: none;
+  border: none;
+  color: #64748B; /* Matching color: "#64748B" */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.close-btn-minimal:hover {
+  color: #0f172a;
+}
+
+/* Loading State */
+.loading-state-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.spinner-large {
+  width: 48px; height: 48px;
+  border: 4px solid #f1f5f9;
+  border-top-color: #2563eb; /* Matching colors.royalBlue */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 24px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-state-centered h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #001F3F;
+}
+
+.loading-state-centered p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748B;
+}
+
+/* Input Form Stack */
+.input-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-label {
+  font-size: 14px;
+  color: #334155; /* Matching color: '#334155' */
+  font-weight: 500;
+}
+
+.mobile-input-field {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #E2E8F0; /* Matching borderColor: '#E2E8F0' */
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #001F3F;
+  background: #F8FAFC; /* Matching backgroundColor: '#F8FAFC' */
+  outline: none;
+  transition: all 0.2s;
+}
+
+.mobile-input-field:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.info-help-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.info-icon-gray {
+  color: #64748B;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.info-help-row p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748B;
+  line-height: 1.5;
+}
+
+.verify-action-btn {
+  width: 100%;
+  padding: 16px;
+  background: #2563eb; /* Matching colors.royalBlue */
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.verify-action-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-disabled {
+  background: #CBD5E1 !important; /* Matching color: '#CBD5E1' */
+  cursor: not-allowed;
+}
+
 </style>

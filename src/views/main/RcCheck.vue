@@ -154,7 +154,7 @@ const verifyRc = () => {
         <div v-if="isLoading" class="loading-state">
           <div class="spinner"></div>
           <h4>Verifying RC details...</h4>
-          <p>Please wait, this may take a moment.</p>
+          <p>Please wait, accessing live RTO databases.</p>
         </div>
 
         <div v-else class="input-state">

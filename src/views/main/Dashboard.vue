@@ -17,7 +17,7 @@ const props = defineProps<{
   }
 }>()
 
-const emit = defineEmits(['back'])
+const emit = defineEmits(['back', 'navigate'])
 
 const jobStats = ref([
   {
@@ -25,21 +25,24 @@ const jobStats = ref([
     value: 0,
     image: 'https://cdn-icons-png.flaticon.com/512/594/594085.png',
     color: '#3b82f6',
-    bg: '#eff6ff'
+    bg: '#eff6ff',
+    view: 'view-jobs'
   },
   {
     label: 'Total Applicants',
     value: 0,
     image: 'https://cdn-icons-png.flaticon.com/512/11651/11651437.png',
     color: '#8b5cf6',
-    bg: '#f5f3ff'
+    bg: '#f5f3ff',
+    view: 'view-applications'
   },
   {
     label: 'Total Added Driver',
     value: 0,
     image: 'https://cdn-icons-png.flaticon.com/512/6008/6008817.png',
     color: '#10b981',
-    bg: '#ecfdf5'
+    bg: '#ecfdf5',
+    view: 'driver-list'
   },
 ])
 
@@ -49,27 +52,33 @@ const commStats = ref([
     value: 0,
     image: 'https://cdn-icons-png.flaticon.com/512/6003/6003724.png',
     color: '#f59e0b',
-    bg: '#fffbeb'
+    bg: '#fffbeb',
+    view: 'driver-invites'
   },
   {
     label: 'Video Interview Invitation',
     value: 0,
     image: 'https://cdn-icons-png.flaticon.com/512/1256/1256650.png',
     color: '#ec4899',
-    bg: '#fdf2f8'
+    bg: '#fdf2f8',
+    view: 'dashboard'
   },
   {
     label: 'Call Job Manager',
     value: 0,
     image: 'https://cdn-icons-png.flaticon.com/512/455/455705.png',
     color: '#3b82f6',
-    bg: '#eff6ff'
+    bg: '#eff6ff',
+    view: 'dashboard'
   },
 ])
+
+const handleStatClick = (stat: any) => {
+  if (stat.view) emit('navigate', stat.view)
+}
 </script>
 
 <template>
-  <!-- Only the scrollable stats body — layout shell is AppLayout in App.vue -->
   <div class="dash-body">
 
     <!-- Header Area -->
@@ -106,6 +115,7 @@ const commStats = ref([
           v-for="(stat, i) in jobStats"
           :key="i"
           class="stat-card"
+          @click="handleStatClick(stat)"
           :style="{ '--card-accent': stat.color, '--card-bg': stat.bg }"
         >
           <div class="stat-icon-wrap">
@@ -131,6 +141,7 @@ const commStats = ref([
           v-for="(stat, i) in commStats"
           :key="i"
           class="stat-card"
+          @click="handleStatClick(stat)"
           :style="{ '--card-accent': stat.color, '--card-bg': stat.bg }"
         >
           <div class="stat-icon-wrap">
