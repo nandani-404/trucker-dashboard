@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { END_POINTS, apiPostForm, setAuthToken, setUser } from '../../../services/config/api'
 
 const props = defineProps<{
@@ -30,13 +30,15 @@ function clearError() {
   error.value = ''
 }
 
-watch(step, (s) => {
-  if (s === 2) {
-    nextTick().then(() => {
-      setTimeout(() => otpInputRefs.value[0]?.focus(), 100)
-    })
-  }
-})
+const otpStepRef = ref<HTMLElement | null>(null)
+
+function onOtpStepEntered() {
+  if (step.value !== 2) return
+  nextTick().then(() => {
+    const el = otpStepRef.value?.querySelector<HTMLInputElement>('.otp-boxes input')
+    el?.focus()
+  })
+}
 
 async function sendOtp() {
   const m = mobile.value.trim()
@@ -73,11 +75,22 @@ const fullOtp = computed(() => (otp0.value + otp1.value + otp2.value + otp3.valu
 
 function onOtpInput(idx: number, e: Event) {
   const el = e.target as HTMLInputElement
-  const val = el.value.replace(/\D/g, '').slice(-1)
+  const raw = el.value.replace(/\D/g, '')
   const digits = [otp0, otp1, otp2, otp3]
+  if (raw.length >= 4) {
+    const chars = raw.slice(0, 4).split('')
+    chars.forEach((c, i) => { if (digits[i]) digits[i].value = c })
+    otpInputRefs.value[3]?.focus()
+    nextTick().then(() => verifyOtp())
+    return
+  }
+  const val = raw.slice(-1)
   const d = digits[idx]
   if (d) d.value = val
   if (val && idx < 3) otpInputRefs.value[idx + 1]?.focus()
+  if (val && idx === 3) {
+    nextTick().then(() => verifyOtp())
+  }
 }
 
 function onOtpKeydown(idx: number, e: KeyboardEvent) {
@@ -168,7 +181,7 @@ function closeTransporterPopup() {
       <h1 class="title">Welcome to TruckMitr</h1>
       <p class="subtitle">Enter your mobile number to continue</p>
 
-      <transition name="fade" mode="out-in">
+      <transition name="fade" mode="out-in" @after-enter="onOtpStepEntered">
         <form v-if="step === 1" key="mobile" class="form" @submit.prevent="sendOtp">
           <div class="field">
             <label>Mobile</label>
@@ -192,7 +205,7 @@ function closeTransporterPopup() {
           </button>
         </form>
 
-        <div v-else key="otp" class="otp-step">
+        <div v-else key="otp" ref="otpStepRef" class="otp-step">
           <div class="field">
             <label>Enter OTP</label>
             <p class="otp-hint">Sent to +91 {{ mobile }}</p>
