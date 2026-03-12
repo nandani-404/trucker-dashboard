@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { END_POINTS, apiPostForm, setAuthToken, setUser } from '../../../services/config/api'
 
 const props = defineProps<{
@@ -12,7 +12,15 @@ const emit = defineEmits<{
 }>()
 
 const mobile = ref('')
-const otp = ref('')
+const otp0 = ref('')
+const otp1 = ref('')
+const otp2 = ref('')
+const otp3 = ref('')
+const otpInputRefs = ref<(HTMLInputElement | null)[]>([null, null, null, null])
+
+function setOtpRef(i: number, el: unknown) {
+  if (el) otpInputRefs.value[i] = el as HTMLInputElement
+}
 const step = ref(1)
 const loading = ref(false)
 const error = ref('')
@@ -21,6 +29,14 @@ const showTransporterOnlyPopup = ref(false)
 function clearError() {
   error.value = ''
 }
+
+watch(step, (s) => {
+  if (s === 2) {
+    nextTick().then(() => {
+      setTimeout(() => otpInputRefs.value[0]?.focus(), 100)
+    })
+  }
+})
 
 async function sendOtp() {
   const m = mobile.value.trim()
@@ -42,7 +58,7 @@ async function sendOtp() {
 
     if (res?.status || res?.success) {
       step.value = 2
-      otp.value = ''
+      otp0.value = otp1.value = otp2.value = otp3.value = ''
     } else {
       error.value = (res as { message?: string })?.message || 'Failed to send OTP'
     }
@@ -53,9 +69,30 @@ async function sendOtp() {
   }
 }
 
+const fullOtp = computed(() => (otp0.value + otp1.value + otp2.value + otp3.value).trim())
+
+function onOtpInput(idx: number, e: Event) {
+  const el = e.target as HTMLInputElement
+  const val = el.value.replace(/\D/g, '').slice(-1)
+  const digits = [otp0, otp1, otp2, otp3]
+  const d = digits[idx]
+  if (d) d.value = val
+  if (val && idx < 3) otpInputRefs.value[idx + 1]?.focus()
+}
+
+function onOtpKeydown(idx: number, e: KeyboardEvent) {
+  const digits = [otp0, otp1, otp2, otp3]
+  const curr = digits[idx]
+  const prev = digits[idx - 1]
+  if (e.key === 'Backspace' && curr && !curr.value && idx > 0) {
+    if (prev) prev.value = ''
+    otpInputRefs.value[idx - 1]?.focus()
+  }
+}
+
 async function verifyOtp() {
-  const fullOtp = otp.value.trim()
-  if (fullOtp.length < 4) {
+  const otpVal = fullOtp.value
+  if (otpVal.length < 4) {
     error.value = 'Please enter complete OTP'
     return
   }
@@ -64,7 +101,7 @@ async function verifyOtp() {
   try {
     const formData = new FormData()
     formData.append('mobile', mobile.value.trim())
-    formData.append('otp', fullOtp)
+    formData.append('otp', otpVal)
     formData.append('user_lang', 'en')
 
     const res = await apiPostForm<{
@@ -113,11 +150,15 @@ function handleNavigateSignup() {
   emit('navigate-signup')
 }
 
+function handleChangeNumber() {
+  step.value = 1
+  otp0.value = otp1.value = otp2.value = otp3.value = ''
+  clearError()
+}
+
 function closeTransporterPopup() {
   showTransporterOnlyPopup.value = false
-  step.value = 1
-  otp.value = ''
-  clearError()
+  handleChangeNumber()
 }
 </script>
 
@@ -154,28 +195,32 @@ function closeTransporterPopup() {
         <div v-else key="otp" class="otp-step">
           <div class="field">
             <label>Enter OTP</label>
-            <p class="otp-hint">Sent to +91 {{ mobile.slice(-4) }}</p>
-            <input
-              v-model="otp"
-              type="text"
-              placeholder="4 digit OTP"
-              maxlength="6"
-              inputmode="numeric"
-              :class="{ error: error }"
-              @input="clearError"
-            />
+            <p class="otp-hint">Sent to +91 {{ mobile }}</p>
+            <div class="otp-boxes" :class="{ error: error }">
+              <input
+                v-for="(_, i) in [0,1,2,3]"
+                :key="i"
+                :ref="(el) => setOtpRef(i, el)"
+                :value="[otp0, otp1, otp2, otp3][i]"
+                type="text"
+                inputmode="numeric"
+                maxlength="1"
+                @input="(e) => { onOtpInput(i, e); clearError() }"
+                @keydown="onOtpKeydown(i, $event)"
+              />
+            </div>
             <span v-if="error" class="err-msg">{{ error }}</span>
           </div>
           <button
             type="button"
             class="submit-btn"
-            :disabled="loading || otp.trim().length < 4"
+            :disabled="loading || fullOtp.length < 4"
             @click="verifyOtp"
           >
             <span v-if="!loading">Verify OTP</span>
             <span v-else class="spinner"></span>
           </button>
-          <button type="button" class="text-btn" @click="step = 1; clearError()">
+          <button type="button" class="text-btn" @click="handleChangeNumber">
             ← Change number
           </button>
         </div>
@@ -278,8 +323,7 @@ function closeTransporterPopup() {
   font-weight: 500;
 }
 
-.input-with-prefix input,
-.otp-step input {
+.input-with-prefix input {
   flex: 1;
   border: none;
   background: transparent;
@@ -288,13 +332,33 @@ function closeTransporterPopup() {
   outline: none;
 }
 
-.otp-step input {
+.otp-boxes {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.otp-boxes input {
+  width: 52px;
+  height: 56px;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #f8fafc;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
 }
 
-.otp-step input.error,
+.otp-boxes input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.otp-boxes.error input {
+  border-color: #ef4444;
+}
+
 .input-with-prefix.error {
   border-color: #ef4444;
 }
