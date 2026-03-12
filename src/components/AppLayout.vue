@@ -10,11 +10,15 @@ import {
   Search,
   LogOut,
   ChevronRight,
+  ChevronLeft,
+  PanelLeftClose,
+  PanelLeft,
   Briefcase,
   FileCheck,
+  Video,
 } from 'lucide-vue-next'
-import { apiGet } from '../services/config/api'
-import { END_POINTS, BASE_URL } from '../services/config/api'
+import { BASE_URL } from '../services/config/api'
+import { getProfileFull, getSubscriptionDetails } from '../services/profile/profileApi'
 import logoImg from '../assets/logo/logotrick.png'
 
 const props = defineProps<{
@@ -33,6 +37,8 @@ const emit = defineEmits(['logout', 'navigate'])
 
 const mainContent = ref<HTMLElement | null>(null)
 const profileData = ref<Record<string, unknown> | null>(null)
+const subscriptionData = ref<Record<string, unknown> | null>(null)
+const sidebarVisible = ref(true)
 
 const displayName = computed(() =>
   (profileData.value?.name as string) || (profileData.value?.name_eng as string) || props.user?.name || 'User'
@@ -70,9 +76,20 @@ const profileImageUrl = computed(() => {
   return path
 })
 
-const whatsappLink = computed(() =>
-  (profileData.value?.whatsapp_link as string) || (props.user?.whatsapp_link as string) || ''
-)
+const displayRole = computed(() => {
+  const r = (props.user?.role || '').toLowerCase()
+  const sub = subscriptionData.value
+  if (r === 'shipper') return 'Transporter'
+  if (r === 'transporter') {
+    const amount = sub?.amount ? parseFloat(String(sub.amount)) : 0
+    const captured = sub?.payment_status === 'captured'
+    const hasEndAt = sub?.end_at && new Date((sub.end_at as number) * 1000) > new Date()
+    if (captured && hasEndAt && [99, 99.0, 100, 1, 1.0].includes(amount)) return 'Legacy Transporter'
+    if (captured && hasEndAt && (amount === 499 || amount === 499.0)) return 'Transporter Pro'
+    return 'Transporter'
+  }
+  return (props.user?.role || 'User') as string
+})
 
 const isDriver = computed(() =>
   ['driver', 'foreman', 'association'].includes(String(props.user?.role || '').toLowerCase())
@@ -82,10 +99,12 @@ const circumference = 138
 const progressOffset = computed(() => circumference - (profileCompletion.value / 100) * circumference)
 
 const navItems = computed(() => {
+  const dka = { id: 'driver-ki-awaz', label: 'Driver Ki Awaz', icon: Video }
   if (isDriver.value) {
     return [
       { id: 'home', label: 'Home', icon: Home },
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      dka,
       { id: 'view-jobs', label: 'Available Jobs', icon: Briefcase },
       { id: 'view-applications', label: 'Applied Jobs', icon: FileCheck },
       { id: 'profile', label: 'Profile', icon: User },
@@ -94,6 +113,7 @@ const navItems = computed(() => {
   return [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    dka,
     { id: 'add-job', label: 'Add Job', icon: PlusCircle },
     { id: 'view-jobs', label: 'View Job List', icon: ClipboardList },
     { id: 'profile', label: 'Profile', icon: User },
@@ -106,11 +126,18 @@ watch(() => props.currentView, () => {
 
 const fetchProfile = async () => {
   try {
-    const res = await apiGet<{ status?: boolean; data?: Record<string, unknown> }>(END_POINTS.GET_PROFILE)
-    if (res?.status && res?.data) {
-      const d = res.data as Record<string, unknown>
-      profileData.value = (d.data as Record<string, unknown>) || d
+    const [full, subscription] = await Promise.all([
+      getProfileFull(),
+      getSubscriptionDetails(),
+    ])
+    if (full?.user) {
+      profileData.value = {
+        ...(full.user as Record<string, unknown>),
+        profile_completion: full.profile_completion,
+        profile_completion_percentage: full.profile_completion,
+      }
     }
+    subscriptionData.value = subscription as Record<string, unknown>
   } catch {
     // Use props.user as fallback
   }
@@ -122,11 +149,20 @@ onMounted(fetchProfile)
 <template>
   <div class="app-shell">
     <!-- ========== FIXED SIDEBAR ========== -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ collapsed: !sidebarVisible }">
       <div class="sidebar-header">
         <div class="logo">
           <img :src="logoImg" alt="TruckMitr" class="logo-img" />
         </div>
+        <button
+          type="button"
+          class="sidebar-toggle"
+          :title="sidebarVisible ? 'Hide sidebar' : 'Show sidebar'"
+          @click="sidebarVisible = !sidebarVisible"
+        >
+          <PanelLeftClose v-if="sidebarVisible" :size="18" />
+          <PanelLeft v-else :size="18" />
+        </button>
       </div>
 
       <nav class="sidebar-nav">
@@ -164,6 +200,15 @@ onMounted(fetchProfile)
     <div class="right-panel">
       <!-- FIXED TOP HEADER -->
       <header class="top-header">
+        <button
+          v-if="!sidebarVisible"
+          type="button"
+          class="sidebar-toggle-floating"
+          title="Show sidebar"
+          @click="sidebarVisible = true"
+        >
+          <PanelLeft :size="20" />
+        </button>
         <!-- Greeting -->
         <div class="greeting-box">
           <h1 class="greeting">
@@ -172,7 +217,8 @@ onMounted(fetchProfile)
           </h1>
           <div class="user-meta">
             <span class="user-id">{{ displayTmId }}</span>
-            <span class="user-role">{{ user.role || 'User' }}</span>
+            <span class="dot-separator">•</span>
+            <span class="user-role">{{ displayRole }}</span>
           </div>
         </div>
 
@@ -189,36 +235,40 @@ onMounted(fetchProfile)
           <button
             class="action-btn dashboard-btn"
             :class="{ 'btn-active': currentView === 'dashboard' }"
+            title="Dashboard"
+            aria-label="Dashboard"
             @click="emit('navigate', 'dashboard')"
           >
             <img
               src="https://cdn-icons-png.flaticon.com/512/610/610106.png"
               class="btn-img-icon"
-              alt="Dashboard"
+              alt=""
             />
-            Dashboard
+            <span class="action-btn-text">Dashboard</span>
           </button>
 
           <a
-            v-if="whatsappLink"
-            :href="whatsappLink"
+            href="https://wa.me/919254972811"
             target="_blank"
             rel="noopener noreferrer"
             class="action-btn whatsapp-btn"
+            title="Join WhatsApp"
+            aria-label="Join WhatsApp"
           >
             <img
               src="https://upload.wikimedia.org/wikipedia/commons/5/5e/WhatsApp_icon.png"
-              class="btn-img-icon whatsapp-img"
-              alt="WhatsApp"
+              class="btn-img-icon"
+              style="filter: none;"
+              alt=""
             />
-            Join WhatsApp
+            <span class="action-btn-text">Join WhatsApp</span>
           </a>
 
-          <!-- Profile Ring / Logout -->
+          <!-- Profile Ring -->
           <div
             class="profile-avatar-container"
-            @click="emit('logout')"
-            title="Click to Logout"
+            @click="emit('navigate', 'profile')"
+            title="View Profile"
           >
             <svg class="progress-ring" width="60" height="60" viewBox="0 0 50 50">
               <circle class="ring-bg" cx="25" cy="25" r="22" />
@@ -230,11 +280,10 @@ onMounted(fetchProfile)
             </svg>
             <div class="avatar-inner">
               <img v-if="profileImageUrl" :src="profileImageUrl" alt="Profile" class="avatar-img" />
-              <User v-else :size="28" color="#1e40af" />
-              <div class="avatar-badge">{{ profileCompletion }}%</div>
+              <User v-else :size="24" color="#ff6b00" />
             </div>
-            <div class="logout-overlay">
-              <LogOut :size="20" color="#ffffff" />
+            <div class="avatar-badge-pill">
+              {{ profileCompletion }}%
             </div>
           </div>
         </div>
@@ -276,22 +325,79 @@ onMounted(fetchProfile)
   position: sticky;
   top: 0;
   z-index: 20;
+  transition: width 0.25s ease, min-width 0.25s ease;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  border-right: none;
 }
 
 .sidebar-header {
   height: 72px;
   display: flex;
   align-items: center;
-  padding: 0 24px;
+  justify-content: space-between;
+  padding: 0 16px 0 24px;
   border-bottom: 1px solid #f1f5f9;
   flex-shrink: 0;
+  min-width: 260px;
+}
+
+.sidebar.collapsed .sidebar-header {
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.sidebar-toggle {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f1f5f9;
+  border-radius: 10px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sidebar-toggle:hover {
+  background: #e2e8f0;
+  color: #1e40af;
+}
+
+.sidebar-toggle-floating {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 12px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-floating:hover {
+  background: #f8fafc;
+  color: #1e40af;
+  border-color: #cbd5e1;
 }
 
 .logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  flex: 1;
 }
 
 .logo-img {
@@ -399,7 +505,7 @@ onMounted(fetchProfile)
 
 /* ─── Fixed Top Header ─── */
 .top-header {
-  height: 72px;
+  min-height: 72px;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
@@ -411,6 +517,8 @@ onMounted(fetchProfile)
   top: 0;
   z-index: 15;
   box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .greeting-box { display: flex; flex-direction: column; }
@@ -574,8 +682,8 @@ onMounted(fetchProfile)
 
 .ring-progress {
   fill: none;
-  stroke: #fbbf24;
-  stroke-width: 3;
+  stroke: #ff6b00; /* Vibrant Orange */
+  stroke-width: 3.5;
   stroke-dasharray: 138;
   stroke-dashoffset: 138;
   stroke-linecap: round;
@@ -602,31 +710,20 @@ onMounted(fetchProfile)
   overflow: hidden;
 }
 
-.avatar-badge {
+.avatar-badge-pill {
   position: absolute;
-  bottom: -8px;
-  background: #ffffff;
-  color: #16a34a;
-  font-size: 9px;
+  bottom: 0px;
+  right: -2px;
+  background: #ff6b00;
+  color: #ffffff;
+  font-size: 10px;
   font-weight: 800;
   padding: 2px 6px;
-  border-radius: 10px;
-  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 5;
 }
-
-.logout-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(15,23,42,0.8);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.profile-avatar-container:hover .logout-overlay { opacity: 1; }
 
 /* ─── Scrollable content area ─── */
 .content-area {
@@ -638,4 +735,105 @@ onMounted(fetchProfile)
 .content-area::-webkit-scrollbar { width: 6px; }
 .content-area::-webkit-scrollbar-track { background: transparent; }
 .content-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+/* ─── Mobile responsive top header ─── */
+@media (max-width: 1024px) {
+  .top-header {
+    padding: 12px 20px;
+    gap: 10px;
+  }
+  .search-container {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: none;
+    margin: 0;
+  }
+  .greeting { font-size: 15px; }
+  .user-meta { font-size: 11px; gap: 5px; }
+  .user-id { font-size: 10px; padding: 2px 5px; }
+  .action-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  .action-btn .btn-img-icon { width: 14px; height: 14px; }
+  .profile-avatar-container {
+    width: 48px;
+    height: 48px;
+  }
+  .profile-avatar-container .progress-ring { width: 48px; height: 48px; }
+  .avatar-inner { width: 36px; height: 36px; }
+  .avatar-badge-pill { font-size: 9px; padding: 1px 4px; }
+}
+
+@media (max-width: 768px) {
+  .top-header {
+    padding: 10px 16px;
+    min-height: auto;
+  }
+  .greeting-box {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+  .greeting {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .user-meta {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .user-id {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .search-container {
+    order: 3;
+    flex: 1 1 100%;
+  }
+  .search-bar input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  .header-actions {
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .action-btn .action-btn-text { display: none; }
+  .action-btn {
+    padding: 8px 10px;
+  }
+  .action-btn .btn-img-icon {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+  }
+  .profile-avatar-container {
+    width: 44px;
+    height: 44px;
+    margin-left: 0;
+  }
+  .profile-avatar-container .progress-ring { width: 44px; height: 44px; }
+  .avatar-inner { width: 32px; height: 32px; }
+  .avatar-badge-pill { font-size: 8px; padding: 1px 3px; }
+}
+
+@media (max-width: 480px) {
+  .top-header {
+    padding: 8px 12px;
+  }
+  .greeting { font-size: 13px; }
+  .dot-separator,
+  .user-role { display: none; }
+  .user-id { max-width: 70px; }
+  .search-bar { padding: 6px 12px; }
+  .sidebar-toggle-floating {
+    width: 36px;
+    height: 36px;
+    margin-right: 8px;
+  }
+}
 </style>

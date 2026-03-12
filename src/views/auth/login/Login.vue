@@ -1,485 +1,364 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import {
-  END_POINTS,
-  apiPostForm,
-  apiGet,
-  setAuthToken,
-  setUser,
-} from '../../../services/config/api'
+import { END_POINTS, apiPostForm, setAuthToken, setUser } from '../../../services/config/api'
 
-const mobileNumber = ref('')
+const props = defineProps<{
+  showBackButton?: boolean
+}>()
+
+const emit = defineEmits<{
+  'login-success': [user: Record<string, unknown>]
+  'navigate-signup': []
+}>()
+
+const mobile = ref('')
 const otp = ref('')
 const step = ref(1)
 const loading = ref(false)
-const errorMessage = ref('')
+const error = ref('')
 
-const props = defineProps<{ showBackButton?: boolean }>()
-const emit = defineEmits(['login-success', 'navigate-signup', 'back'])
-
-// Validate mobile (same as RN: check not empty)
-const validateMobile = (): boolean => {
-  if (!mobileNumber.value.trim()) {
-    errorMessage.value = 'Please enter your mobile number'
-    return false
-  }
-  return true
+function clearError() {
+  error.value = ''
 }
 
-const handleSendOTP = async () => {
-  if (!validateMobile()) return
+async function sendOtp() {
+  const m = mobile.value.trim()
+  if (!m || m.length !== 10) {
+    error.value = 'Enter a valid 10 digit mobile number'
+    return
+  }
   loading.value = true
-  errorMessage.value = ''
-
+  clearError()
   try {
     const formData = new FormData()
-    formData.append('mobile', mobileNumber.value.trim())
+    formData.append('mobile', m)
+    formData.append('user_lang', 'en')
 
-    const data = await apiPostForm<{ success: boolean; message?: string }>(
+    const res = await apiPostForm<{ status?: boolean; success?: boolean; message?: string }>(
       END_POINTS.LOGIN,
       formData
     )
 
-    if (data.success) {
+    if (res?.status || res?.success) {
       step.value = 2
-      errorMessage.value = ''
+      otp.value = ''
     } else {
-      errorMessage.value = data.message || 'Failed to send OTP'
+      error.value = (res as { message?: string })?.message || 'Failed to send OTP'
     }
-  } catch (error: unknown) {
-    errorMessage.value =
-      (error as Error).message || 'An error occurred. Please try again.'
-    console.error('Send OTP error:', error)
+  } catch (err) {
+    error.value = (err as Error).message || 'Failed to send OTP. Please try again.'
   } finally {
     loading.value = false
   }
 }
 
-const handleVerifyOTP = async () => {
+async function verifyOtp() {
   const fullOtp = otp.value.trim()
   if (fullOtp.length < 4) {
-    errorMessage.value = 'Please enter complete OTP'
+    error.value = 'Please enter complete OTP'
     return
   }
-  if (loading.value) return
-
   loading.value = true
-  errorMessage.value = ''
-
+  clearError()
   try {
     const formData = new FormData()
-    formData.append('mobile', mobileNumber.value.trim())
+    formData.append('mobile', mobile.value.trim())
     formData.append('otp', fullOtp)
-    // Web has no FCM; send empty string to match RN API contract
-    formData.append('fcm_token', '')
+    formData.append('user_lang', 'en')
 
-    const data = await apiPostForm<{
-      success: boolean
+    const res = await apiPostForm<{
+      status?: boolean
+      success?: boolean
       message?: string
-      user?: Record<string, unknown>
       token?: string
-      access_token?: string
+      user?: Record<string, unknown>
+      data?: { user?: Record<string, unknown>; token?: string }
     }>(END_POINTS.LOGIN_OTP_VERIFY, formData)
 
-    if (data.success && data.token) {
-      let token = data.token || data.access_token || ''
-      // Strip "Bearer " prefix if present (same as RN)
-      if (token.startsWith('Bearer ')) {
-        token = token.replace('Bearer ', '')
-      }
-      setAuthToken(token)
+    const data = res?.data as { user?: Record<string, unknown>; token?: string } | undefined
+    const token = res?.token ?? data?.token
+    const userData = res?.user ?? data?.user
 
-      const userFromResponse = data.user || {}
-      const userData = {
-        id: userFromResponse.id ?? '',
-        unique_id: userFromResponse.unique_id ?? '',
-        name: userFromResponse.name ?? userFromResponse.name_eng ?? 'User',
-        mobile: userFromResponse.mobile ?? mobileNumber.value,
-        email: userFromResponse.email ?? '',
-        role: userFromResponse.role ?? 'User',
-        ...userFromResponse,
-      }
-      setUser(userData)
-
-      // Fetch profile to enrich user data (same as RN)
-      try {
-        const profileRes = await apiGet<{ status?: boolean; data?: Record<string, unknown> }>(
-          END_POINTS.GET_PROFILE
-        )
-        if (profileRes?.status && profileRes?.data) {
-          Object.assign(userData, profileRes.data)
-          setUser(userData)
-        }
-      } catch {
-        // Profile fetch failed; use OTP user data
-      }
-
-      emit('login-success', userData)
-    } else if (data.success && !data.token) {
-      errorMessage.value = data.message || 'Login succeeded but no token received'
+    if ((res?.status || res?.success) && token) {
+      let t = String(token)
+      if (t.startsWith('Bearer ')) t = t.replace('Bearer ', '')
+      setAuthToken(t)
+      const user = (userData || {
+        name: '',
+        name_eng: '',
+        mobile: mobile.value.trim(),
+        email: '',
+        role: 'transporter',
+      }) as Record<string, unknown>
+      setUser(user)
+      emit('login-success', user)
     } else {
-      errorMessage.value = data.message || 'Invalid OTP'
+      error.value = (res as { message?: string })?.message || 'Invalid OTP'
     }
-  } catch (error: unknown) {
-    errorMessage.value =
-      (error as Error).message || 'Verification failed. Please try again.'
-    console.error('Verify OTP error:', error)
+  } catch (err) {
+    error.value = (err as Error).message || 'Verification failed. Please try again.'
   } finally {
     loading.value = false
   }
 }
 
-const clearError = () => {
-  errorMessage.value = ''
-}
-
-const goToSignup = () => {
+function handleNavigateSignup() {
   emit('navigate-signup')
-}
-
-const handleBack = () => {
-  emit('back')
 }
 </script>
 
 <template>
-  <div class="login-container">
-    <button v-if="showBackButton" type="button" class="back-to-home" @click="handleBack">← Back</button>
-    <div class="glass-card">
-      <div class="card-header">
-        <h2>Welcome to TruckMitr</h2>
-        <p>Enter your mobile number to continue</p>
-      </div>
+  <div class="login-page">
+    <main class="login-card">
+      <h1 class="title">Welcome to TruckMitr</h1>
+      <p class="subtitle">Enter your mobile number to continue</p>
 
-      <div class="form-container">
-        <!-- Step 1: Mobile Number (same flow as RN) -->
-        <transition name="fade" mode="out-in">
-          <div v-if="step === 1" key="step1" class="form-step">
-            <div class="input-group">
-              <label for="mobile">Mobile</label>
-              <div class="input-with-prefix">
-                <span class="prefix">+91</span>
-                <input
-                  id="mobile"
-                  type="tel"
-                  v-model="mobileNumber"
-                  @input="clearError"
-                  placeholder="Enter 10 digit number"
-                  maxlength="10"
-                  inputmode="numeric"
-                  pattern="[0-9]*"
-                />
-              </div>
-              <div v-if="errorMessage" class="error-row">
-                <span class="error-icon">!</span>
-                <span class="error-msg">{{ errorMessage }}</span>
-              </div>
-            </div>
-            <button
-              class="primary-btn"
-              @click="handleSendOTP"
-              :disabled="loading || !mobileNumber.trim()"
-            >
-              <span v-if="!loading">Send OTP</span>
-              <span v-else class="spinner"></span>
-            </button>
-          </div>
-
-          <!-- Step 2: OTP Verification (same flow as RN) -->
-          <div v-else key="step2" class="form-step">
-            <div class="input-group">
-              <label for="otp">Enter OTP</label>
-              <div class="otp-instruction">
-                Sent to +91 {{ mobileNumber.slice(-4) }}
-                <span class="edit-link" @click="step = 1; clearError()">Edit</span>
-              </div>
+      <transition name="fade" mode="out-in">
+        <form v-if="step === 1" key="mobile" class="form" @submit.prevent="sendOtp">
+          <div class="field">
+            <label>Mobile</label>
+            <div class="input-with-prefix">
+              <span class="prefix">+91</span>
               <input
-                id="otp"
-                type="text"
-                v-model="otp"
-                @input="clearError"
-                placeholder="Enter 4 or 6 digit OTP"
-                maxlength="6"
+                v-model="mobile"
+                type="tel"
+                placeholder="Enter 10 digit number"
+                maxlength="10"
                 inputmode="numeric"
-                pattern="[0-9]*"
+                :class="{ error: error }"
+                @input="clearError"
               />
-              <div v-if="errorMessage" class="error-row">
-                <span class="error-icon">!</span>
-                <span class="error-msg">{{ errorMessage }}</span>
-              </div>
             </div>
-            <button
-              class="primary-btn"
-              @click="handleVerifyOTP"
-              :disabled="loading || otp.trim().length < 4"
-            >
-              <span v-if="!loading">Verify OTP</span>
-              <span v-else class="spinner"></span>
-            </button>
+            <span v-if="error" class="err-msg">{{ error }}</span>
           </div>
-        </transition>
+          <button type="submit" class="submit-btn" :disabled="loading">
+            <span v-if="!loading">Send OTP</span>
+            <span v-else class="spinner"></span>
+          </button>
+        </form>
 
-        <!-- Register link (same as RN) -->
-        <div class="register-row">
-          <span class="register-text">Need an account?</span>
-          <button type="button" class="register-link" @click="goToSignup">
-            Register now
+        <div v-else key="otp" class="otp-step">
+          <div class="field">
+            <label>Enter OTP</label>
+            <p class="otp-hint">Sent to +91 {{ mobile.slice(-4) }}</p>
+            <input
+              v-model="otp"
+              type="text"
+              placeholder="4 digit OTP"
+              maxlength="6"
+              inputmode="numeric"
+              :class="{ error: error }"
+              @input="clearError"
+            />
+            <span v-if="error" class="err-msg">{{ error }}</span>
+          </div>
+          <button
+            type="button"
+            class="submit-btn"
+            :disabled="loading || otp.trim().length < 4"
+            @click="verifyOtp"
+          >
+            <span v-if="!loading">Verify OTP</span>
+            <span v-else class="spinner"></span>
+          </button>
+          <button type="button" class="text-btn" @click="step = 1; clearError()">
+            ← Change number
           </button>
         </div>
+      </transition>
+
+      <div class="signup-link">
+        <span>Need an account?</span>
+        <button type="button" class="link-btn" @click="handleNavigateSignup">Register now</button>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-* {
-  box-sizing: border-box;
-}
-
-.login-container {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+.login-page {
   min-height: 100vh;
-  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  padding: 24px;
   font-family: 'Inter', sans-serif;
-  background: #ffffff;
-  margin: 0;
-  padding: 20px;
 }
 
-.back-to-home {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  background: none;
-  border: none;
-  font-size: 15px;
-  color: #6b7280;
-  cursor: pointer;
-}
-
-.back-to-home:hover {
-  color: #111827;
-}
-
-.glass-card {
+.login-card {
   width: 100%;
   max-width: 400px;
   background: #ffffff;
-  border: 1px solid #eaeaea;
   border-radius: 24px;
-  padding: 40px 30px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-  color: #111827;
+  padding: 40px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e40af;
+  margin: 0 0 8px 0;
   text-align: center;
 }
 
-.card-header h2 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: #3D5EE1;
+.subtitle {
+  font-size: 15px;
+  color: #64748b;
+  margin: 0 0 28px 0;
+  text-align: center;
 }
 
-.card-header p {
-  margin: 8px 0 24px 0;
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.form-step {
+.form,
+.otp-step {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
-.input-group {
+.field {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  text-align: left;
 }
 
-.input-group label {
+.field label {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: #374151;
 }
 
 .input-with-prefix {
   display: flex;
   align-items: center;
-  border: 1px solid #d1d5db;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  background: #fff;
+  background: #f8fafc;
   overflow: hidden;
 }
 
 .input-with-prefix:focus-within {
-  border-color: #3D5EE1;
-  box-shadow: 0 0 0 4px rgba(61, 94, 225, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .prefix {
-  padding: 14px 16px;
-  font-size: 16px;
-  color: #374151;
+  padding: 0 16px;
+  font-size: 15px;
+  color: #64748b;
   font-weight: 500;
-  background: #f9fafb;
-  border-right: 1px solid #e5e7eb;
 }
 
-.input-with-prefix input {
+.input-with-prefix input,
+.otp-step input {
   flex: 1;
   border: none;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.input-with-prefix input:focus {
-  box-shadow: none;
-}
-
-.error-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.error-icon {
-  color: #ef4444;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.otp-instruction {
-  font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 4px;
-}
-
-.edit-link {
-  color: #111827;
-  font-weight: 600;
-  text-decoration: underline;
-  cursor: pointer;
-  margin-left: 8px;
-}
-
-input {
-  width: 100%;
+  background: transparent;
   padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #111827;
   font-size: 16px;
   outline: none;
-  transition: all 0.3s ease;
 }
 
-input::placeholder {
-  color: #9ca3af;
+.otp-step input {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
 }
 
-input:focus {
-  border-color: #111827;
-  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.1);
+.otp-step input.error,
+.input-with-prefix.error {
+  border-color: #ef4444;
 }
 
-.primary-btn {
+.otp-hint {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.err-msg {
+  font-size: 13px;
+  color: #ef4444;
+}
+
+.submit-btn {
   width: 100%;
-  padding: 14px;
+  padding: 14px 24px;
+  background: #3b82f6;
+  color: #ffffff;
   border: none;
-  border-radius: 100px;
-  background: #3D5EE1;
-  color: #fff;
+  border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 52px;
-  box-shadow: 0 4px 15px rgba(61, 94, 225, 0.3);
+  transition: all 0.2s;
 }
 
-.primary-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(61, 94, 225, 0.35);
+.submit-btn:hover:not(:disabled) {
+  background: #2563eb;
 }
 
-.primary-btn:disabled {
-  background: #f3f4f6;
-  color: #9ca3af;
+.submit-btn:disabled {
+  opacity: 0.7;
   cursor: not-allowed;
-  transform: none;
 }
 
 .spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid rgba(156, 163, 175, 0.3);
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
   border-radius: 50%;
-  border-top-color: #6b7280;
-  animation: spin 1s ease-in-out infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.error-msg {
-  color: #ef4444;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.register-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.register-text {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.register-link {
+.text-btn {
   background: none;
   border: none;
-  color: #3D5EE1;
+  color: #64748b;
   font-size: 14px;
-  font-weight: 700;
   cursor: pointer;
-  padding: 0;
+  padding: 8px 0;
 }
 
-.register-link:hover {
+.text-btn:hover {
+  color: #3b82f6;
+}
+
+.signup-link {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.link-btn:hover {
   text-decoration: underline;
 }
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.4s ease, transform 0.4s ease;
+  transition: opacity 0.2s ease;
 }
-
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-  transform: translateY(10px);
 }
 </style>

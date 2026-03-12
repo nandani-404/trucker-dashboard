@@ -40,6 +40,13 @@ function hasValidPayment(item: SubscriptionItem): boolean {
   return captured && isPremiumAmount && isSubscriptionActive(item)
 }
 
+function has499Payment(item: SubscriptionItem): boolean {
+  const captured = item.payment_status === 'captured'
+  const amt = item.amount ? parseFloat(String(item.amount)) : 0
+  const floorAmt = Math.floor(amt)
+  return captured && floorAmt >= 499 && isSubscriptionActive(item)
+}
+
 /**
  * Check if subscription is active (any valid payment)
  */
@@ -69,6 +76,17 @@ export function hasPremiumSubscription(details: SubscriptionItem | SubscriptionI
 }
 
 /**
+ * Check if user has ₹499+ plan (required for transporters: RC Check, Challan Check, View Applications)
+ */
+export function hasTransporter499Subscription(details: SubscriptionItem | SubscriptionItem[] | null | undefined): boolean {
+  if (!details) return false
+  if (Array.isArray(details)) {
+    return details.some(has499Payment)
+  }
+  return has499Payment(details)
+}
+
+/**
  * Fetch subscription details from API
  */
 export async function fetchSubscriptionDetails(): Promise<{
@@ -76,11 +94,12 @@ export async function fetchSubscriptionDetails(): Promise<{
   subscriptionDetails: Record<string, unknown> | SubscriptionItem[] | null
   hasActive: boolean
   hasPremium: boolean
+  hasTransporter499: boolean
 }> {
   try {
     const res = await apiGet<SubscriptionDetailsResponse>(END_POINTS.PAYMENT_SUBSCRIPTION_DETAILS)
     if (!res?.status) {
-      return { showSubscriptionModel: false, subscriptionDetails: null, hasActive: false, hasPremium: false }
+      return { showSubscriptionModel: false, subscriptionDetails: null, hasActive: false, hasPremium: false, hasTransporter499: false }
     }
 
     let raw: unknown = res.data
@@ -116,14 +135,17 @@ export async function fetchSubscriptionDetails(): Promise<{
     const detailsToCheck = itemsToCheck.length > 0 ? itemsToCheck : (Array.isArray(subData) ? subData : subData ? [subData as SubscriptionItem] : null)
     const hasActive = checkSubscriptionActive(detailsToCheck)
     const hasPremium = hasPremiumSubscription(detailsToCheck)
+    const hasTransporter499 = hasTransporter499Subscription(detailsToCheck)
 
     return {
       showSubscriptionModel,
       subscriptionDetails: subData,
       hasActive,
       hasPremium,
+      hasTransporter499,
     }
   } catch {
-    return { showSubscriptionModel: false, subscriptionDetails: null, hasActive: false, hasPremium: false }
+    return { showSubscriptionModel: false, subscriptionDetails: null, hasActive: false, hasPremium: false, hasTransporter499: false }
   }
 }
+

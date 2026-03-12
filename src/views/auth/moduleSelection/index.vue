@@ -4,7 +4,7 @@ import { ref } from 'vue'
 const MODULE_STORAGE_KEY = 'SELECTED_MODULE'
 
 const ROLE_DATA = [
-  { id: 'driver', label: 'Driver', color: '#4A90E2', module: 'hiring' },
+  // { id: 'driver', label: 'Driver', color: '#4A90E2', module: 'hiring' },
   { id: 'transporter', label: 'Transporter', color: '#F5A623', module: 'hiring' },
 //   { id: 'foreman', label: 'Driver Foreman', color: '#9013FE', module: 'foreman' },
 //   { id: 'association', label: 'Driver Association', color: '#E74C3C', module: 'association' },

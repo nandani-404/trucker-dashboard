@@ -92,6 +92,7 @@ export const END_POINTS = {
 
   // Transporter Verification Endpoints
   TRANSPORTER_BULK_VERIFICATION: 'api/driver-verification/transporter-bulk-verification',
+  TRANSPORTER_VERIFICATION_CREATE_ORDER: 'api/driver-verification/create-order',
   TRANSPORTER_VERIFICATION_STATUS: 'api/driver-verification/transporter-status',
   TRANSPORTER_VERIFICATION_UPLOAD_DOCUMENTS: 'api/transporter-verification/upload-documents',
   TRANSPORTER_VERIFICATION_PAYMENT_CAPTURE: 'api/transporter-verification/payment/capture',
@@ -157,6 +158,19 @@ export const END_POINTS = {
 
   // Document Verification (DigiLocker)
   DOC_VERIFY: 'api/kyc/doc-verify',
+  // Driver ki Awaz
+
+  DKA_POST: `${DRIVER_KI_AWAZ_BASE}api/feed/post`,
+  DKA_FEED: `${DRIVER_KI_AWAZ_BASE}api/feed`,
+  DKA_STREAM: `${DRIVER_KI_AWAZ_BASE}api/feed/stream`,
+  DKA_LIKE: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/${id}/like`,
+  DKA_COMMENT: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/${id}/comment`,
+  DKA_GET_COMMENTS: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/${id}/getcomments`,
+  DKA_SHARE: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/${id}/share`,
+  DKA_EDIT_POST: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/${id}`,
+  DKA_DELETE_POST: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/${id}`,
+  DKA_USER_FEED: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/user/${id}`,
+  DKA_USER_DASHBOARD: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/users/${id}/dashboard`,
 }
 
 // ── Bearer token storage

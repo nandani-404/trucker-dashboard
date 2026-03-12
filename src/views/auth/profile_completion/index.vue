@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   END_POINTS,
   apiGet,
@@ -176,10 +176,33 @@ const isSelected = (field: string, value: string) => {
   return v?.split(',').includes(value) ?? false
 }
 
+const profilePreviewUrl = ref<string | null>(null)
+
 const handleProfileFile = (e: Event) => {
   const input = e.target as HTMLInputElement
-  formData.value.profileFile = input.files?.[0] ?? null
+  if (profilePreviewUrl.value) {
+    URL.revokeObjectURL(profilePreviewUrl.value)
+    profilePreviewUrl.value = null
+  }
+  const file = input.files?.[0] ?? null
+  formData.value.profileFile = file
+  if (file) {
+    profilePreviewUrl.value = URL.createObjectURL(file)
+  }
 }
+
+watch(() => formData.value.profileFile, (file) => {
+  if (!file && profilePreviewUrl.value) {
+    URL.revokeObjectURL(profilePreviewUrl.value)
+    profilePreviewUrl.value = null
+  }
+})
+
+onBeforeUnmount(() => {
+  if (profilePreviewUrl.value) {
+    URL.revokeObjectURL(profilePreviewUrl.value)
+  }
+})
 
 const submitProfile = async () => {
   loading.value = true
@@ -269,13 +292,15 @@ const handleBack = () => {
 <template>
   <div class="profile-completion">
     <header class="header">
-      <button v-if="currentPage > 0" type="button" class="back-btn" @click="handleBack">← Back</button>
-      <div v-else class="back-btn"></div>
-      <div class="header-center">
-        <h2>Profile</h2>
-        <p>Step {{ currentPage + 1 }} of {{ PAGES }}</p>
+      <div class="header-inner">
+        <button v-if="currentPage > 0" type="button" class="back-btn" @click="handleBack">← Back</button>
+        <div v-else class="back-btn"></div>
+        <div class="header-center">
+          <h2>Profile</h2>
+          <p>Step {{ currentPage + 1 }} of {{ PAGES }}</p>
+        </div>
+        <div class="back-btn"></div>
       </div>
-      <div class="back-btn"></div>
     </header>
 
     <div class="progress-bar">
@@ -283,6 +308,7 @@ const handleBack = () => {
     </div>
 
     <main class="content">
+      <div class="content-inner">
       <!-- Page 1: Basic Info -->
       <div v-show="currentPage === 0" class="page">
         <h3>{{ userRole === 'driver' ? 'Basic Information' : 'Business Overview' }}</h3>
@@ -366,19 +392,21 @@ const handleBack = () => {
               </button>
             </div>
           </div>
-          <div class="field">
-            <label>Driving Experience *</label>
-            <select v-model="formData.Driving_Experience">
-              <option value="">Select</option>
-              <option v-for="o in experienceOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>License Type *</label>
-            <select v-model="formData.Type_of_License">
-              <option value="">Select</option>
-              <option v-for="o in licenseOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
+          <div class="form-row">
+            <div class="field">
+              <label>Driving Experience *</label>
+              <select v-model="formData.Driving_Experience">
+                <option value="">Select</option>
+                <option v-for="o in experienceOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>License Type *</label>
+              <select v-model="formData.Type_of_License">
+                <option value="">Select</option>
+                <option v-for="o in licenseOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </div>
           </div>
           <div class="field">
             <label>License Endorsement</label>
@@ -395,19 +423,21 @@ const handleBack = () => {
               </button>
             </div>
           </div>
-          <div class="field">
-            <label>Current Salary *</label>
-            <select v-model="formData.current_salary">
-              <option value="">Select</option>
-              <option v-for="s in salaryRanges" :key="s" :value="s">₹{{ s }}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Expected Salary *</label>
-            <select v-model="formData.expected_salary">
-              <option value="">Select</option>
-              <option v-for="s in salaryRanges" :key="s" :value="s">₹{{ s }}</option>
-            </select>
+          <div class="form-row">
+            <div class="field">
+              <label>Current Salary *</label>
+              <select v-model="formData.current_salary">
+                <option value="">Select</option>
+                <option v-for="s in salaryRanges" :key="s" :value="s">₹{{ s }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Expected Salary *</label>
+              <select v-model="formData.expected_salary">
+                <option value="">Select</option>
+                <option v-for="s in salaryRanges" :key="s" :value="s">₹{{ s }}</option>
+              </select>
+            </div>
           </div>
           <div class="field">
             <label>Truck Ownership *</label>
@@ -487,95 +517,125 @@ const handleBack = () => {
 
         <div class="field">
           <label>Profile Photo *</label>
-          <div class="file-upload">
-            <input type="file" accept="image/*" @change="handleProfileFile" />
-            <span>{{ formData.profileFile?.name || 'Choose file' }}</span>
+          <div class="profile-photo-upload">
+            <div v-if="profilePreviewUrl" class="photo-preview">
+              <img :src="profilePreviewUrl" alt="Profile preview" class="photo-preview-img" />
+            </div>
+            <div class="file-upload">
+              <input type="file" accept="image/*" @change="handleProfileFile" />
+              <span>{{ formData.profileFile?.name || 'Choose file' }}</span>
+            </div>
           </div>
         </div>
 
         <template v-if="userRole === 'driver'">
-          <div class="field">
-            <label>License Number *</label>
-            <input v-model="formData.License_Number" type="text" placeholder="e.g. MH0120230000000" maxlength="16" />
-          </div>
-          <div class="field">
-            <label>License Expiry *</label>
-            <input v-model="formData.Expiry_date_of_License" type="date" />
+          <div class="form-row">
+            <div class="field">
+              <label>License Number *</label>
+              <input v-model="formData.License_Number" type="text" placeholder="e.g. MH0120230000000" maxlength="16" />
+            </div>
+            <div class="field">
+              <label>License Expiry *</label>
+              <input v-model="formData.Expiry_date_of_License" type="date" />
+            </div>
           </div>
         </template>
 
         <template v-else>
-          <div class="field">
-            <label>PAN Number</label>
-            <input v-model="formData.pan" type="text" placeholder="ABCDE1234F" maxlength="10" />
-          </div>
-          <div class="field">
-            <label>GST Number</label>
-            <input v-model="formData.gst" type="text" placeholder="Optional" maxlength="15" />
+          <div class="form-row">
+            <div class="field">
+              <label>PAN Number</label>
+              <input v-model="formData.pan" type="text" placeholder="ABCDE1234F" maxlength="10" />
+            </div>
+            <div class="field">
+              <label>GST Number</label>
+              <input v-model="formData.gst" type="text" placeholder="Optional" maxlength="15" />
+            </div>
           </div>
         </template>
 
-        <div class="field">
-          <label>State *</label>
-          <select v-model="formData.states">
-            <option value="">Select state</option>
-            <option v-for="s in statesList" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
-          </select>
+        <div class="form-row">
+          <div class="field">
+            <label>State *</label>
+            <select v-model="formData.states">
+              <option value="">Select state</option>
+              <option v-for="s in statesList" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>City</label>
+            <input v-model="formData.city" type="text" placeholder="City" />
+          </div>
         </div>
-        <div class="field">
-          <label>City</label>
-          <input v-model="formData.city" type="text" placeholder="City" />
+        <div class="form-row">
+          <div class="field">
+            <label>Pincode</label>
+            <input v-model="formData.pincode" type="text" placeholder="Pincode" maxlength="6" />
+          </div>
+          <div class="field">
+            <label>Address</label>
+            <input v-model="formData.address" type="text" placeholder="Address" />
+          </div>
         </div>
-        <div class="field">
-          <label>Pincode</label>
-          <input v-model="formData.pincode" type="text" placeholder="Pincode" maxlength="6" />
-        </div>
-        <div class="field">
-          <label>Address</label>
-          <input v-model="formData.address" type="text" placeholder="Address" />
-        </div>
+      </div>
       </div>
     </main>
 
     <footer class="footer">
-      <button
-        type="button"
-        class="next-btn"
-        :disabled="loading"
-        @click="handleNext"
-      >
-        <span v-if="!loading">{{ currentPage === PAGES - 1 ? 'Finish' : 'Next' }}</span>
-        <span v-else class="spinner"></span>
-      </button>
+      <div class="footer-inner">
+        <button
+          type="button"
+          class="next-btn"
+          :disabled="loading"
+          @click="handleNext"
+        >
+          <span v-if="!loading">{{ currentPage === PAGES - 1 ? 'Finish' : 'Next' }}</span>
+          <span v-else class="spinner"></span>
+        </button>
+      </div>
     </footer>
   </div>
 </template>
 
 <style scoped>
 .profile-completion {
+  height: 100vh;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f8f9fa;
-  font-family: system-ui, sans-serif;
+  overflow: hidden;
+  background: #f0f2f5;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Header */
 .header {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
+  padding: 16px 24px;
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 .back-btn {
-  width: 60px;
+  min-width: 60px;
   background: none;
   border: none;
   font-size: 15px;
-  color: #333;
+  color: #3D5EE1;
   cursor: pointer;
+  padding: 8px 0;
+}
+
+.back-btn:hover {
+  text-decoration: underline;
 }
 
 .header-center {
@@ -583,90 +643,139 @@ const handleBack = () => {
 }
 
 .header-center h2 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   margin: 0 0 2px 0;
+  color: #1a1a2e;
 }
 
 .header-center p {
-  font-size: 12px;
-  color: #6c757d;
+  font-size: 13px;
+  color: #6b7280;
   margin: 0;
 }
 
 .progress-bar {
-  height: 6px;
-  background: #e9ecef;
+  height: 4px;
+  background: #e5e7eb;
 }
 
 .progress-fill {
   height: 100%;
-  background: #3D5EE1;
+  background: linear-gradient(90deg, #3D5EE1, #5b7cf5);
   transition: width 0.3s ease;
 }
 
+/* Content */
 .content {
   flex: 1;
-  padding: 24px 20px 100px;
+  min-height: 0;
+  padding: 32px 24px 120px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.content-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .page h3 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
-  margin: 0 0 20px 0;
-  color: #212529;
+  margin: 0 0 24px 0;
+  color: #1a1a2e;
+  letter-spacing: -0.02em;
 }
 
+/* Form fields */
 .field {
   margin-bottom: 20px;
 }
 
 .field label {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  color: #495057;
+  color: #374151;
   margin-bottom: 8px;
 }
 
 .field input,
 .field select {
   width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #ced4da;
-  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
   font-size: 15px;
   background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field input:hover,
+.field select:hover {
+  border-color: #9ca3af;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: #3D5EE1;
+  box-shadow: 0 0 0 3px rgba(61, 94, 225, 0.15);
 }
 
 .radio-row {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .radio {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 15px;
   cursor: pointer;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+  transition: all 0.2s;
+}
+
+.radio:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.radio:has(input:checked) {
+  border-color: #3D5EE1;
+  background: #f0f5ff;
 }
 
 .chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .chip {
-  padding: 10px 16px;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
+  padding: 10px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   background: #fff;
   font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chip:hover {
+  border-color: #3D5EE1;
+  background: #f8faff;
 }
 
 .chip.selected {
@@ -677,11 +786,12 @@ const handleBack = () => {
 }
 
 .field-hint {
-  font-size: 12px;
-  color: #6c757d;
+  font-size: 13px;
+  color: #6b7280;
   margin: -4px 0 12px 0;
 }
 
+/* Vehicle grid */
 .vehicle-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -692,8 +802,8 @@ const handleBack = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px;
-  border: 2px solid #dee2e6;
+  padding: 16px 12px;
+  border: 2px solid #e5e7eb;
   border-radius: 12px;
   background: #fff;
   cursor: pointer;
@@ -702,7 +812,9 @@ const handleBack = () => {
 }
 
 .vehicle-tile:hover {
-  border-color: #adb5bd;
+  border-color: #3D5EE1;
+  background: #f8faff;
+  transform: translateY(-1px);
 }
 
 .vehicle-tile.selected {
@@ -720,9 +832,9 @@ const handleBack = () => {
 .vehicle-label {
   font-size: 12px;
   font-weight: 600;
-  color: #495057;
+  color: #374151;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .vehicle-tile.selected .vehicle-label {
@@ -731,10 +843,10 @@ const handleBack = () => {
 
 .vehicle-check {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 20px;
-  height: 20px;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: #3D5EE1;
   color: #fff;
@@ -744,45 +856,89 @@ const handleBack = () => {
   justify-content: center;
 }
 
-.file-upload {
-  border: 1px dashed #ced4da;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
+/* File upload */
+.profile-photo-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.file-upload input {
-  position: absolute;
-  opacity: 0;
+.photo-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.photo-preview-img {
   width: 100%;
   height: 100%;
-  cursor: pointer;
+  object-fit: cover;
 }
 
 .file-upload {
   position: relative;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  background: #fafafa;
+  transition: all 0.2s;
 }
 
+.file-upload:hover {
+  border-color: #3D5EE1;
+  background: #f8faff;
+}
+
+.file-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-upload span {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* Footer */
 .footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px 20px 24px;
+  padding: 20px 24px 28px;
   background: #fff;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.footer-inner {
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 .next-btn {
   width: 100%;
   height: 52px;
   border: none;
-  border-radius: 8px;
-  background: #3D5EE1;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3D5EE1, #5b7cf5);
   color: #fff;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(61, 94, 225, 0.35);
+}
+
+.next-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(61, 94, 225, 0.4);
 }
 
 .next-btn:disabled {
@@ -794,7 +950,7 @@ const handleBack = () => {
   display: inline-block;
   width: 22px;
   height: 22px;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -802,5 +958,109 @@ const handleBack = () => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Tablet */
+@media (min-width: 640px) {
+  .vehicle-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .radio-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .radio {
+    flex: 1;
+    min-width: 180px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  .header-inner {
+    padding: 20px 32px;
+  }
+
+  .header-center h2 {
+    font-size: 20px;
+  }
+
+  .content {
+    padding: 40px 32px 140px;
+  }
+
+  .content-inner {
+    padding: 40px 40px;
+    border-radius: 20px;
+  }
+
+  .page h3 {
+    font-size: 22px;
+    margin-bottom: 28px;
+  }
+
+  .vehicle-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .vehicle-image {
+    height: 80px;
+  }
+
+  .footer-inner {
+    padding: 0;
+  }
+
+  .next-btn {
+    max-width: 320px;
+    margin: 0 auto;
+    display: block;
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1024px) {
+  .content-inner {
+    max-width: 800px;
+  }
+
+  .header-inner,
+  .footer-inner {
+    max-width: 800px;
+  }
+
+  .vehicle-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+}
+
+/* Form row - two columns on desktop */
+.form-row {
+  margin-bottom: 20px;
+}
+
+.form-row .field {
+  margin-bottom: 20px;
+}
+
+.form-row .field:last-child {
+  margin-bottom: 0;
+}
+
+@media (min-width: 768px) {
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .form-row .field {
+    margin-bottom: 0;
+  }
 }
 </style>

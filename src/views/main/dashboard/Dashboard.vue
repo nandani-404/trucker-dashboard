@@ -21,6 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['back', 'navigate'])
 
+
 const loading = ref(true)
 
 /** Dashboard data from GET_PROFILE (total_jobs_posted, total_applications, etc.) */
@@ -171,7 +172,6 @@ onMounted(fetchDashboard)
 </script>
 
 <template>
-  <!-- Only the scrollable stats body — layout shell is AppLayout in App.vue -->
   <div class="dash-body">
 
     <!-- Header Area -->

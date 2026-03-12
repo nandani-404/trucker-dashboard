@@ -9,6 +9,7 @@ import {
   ChevronRight,
   GraduationCap,
   ShieldCheck,
+  Banknote
 } from 'lucide-vue-next'
 import { apiGet } from '../../../services/config/api'
 import { END_POINTS, BASE_URL } from '../../../services/config/api'
@@ -68,12 +69,15 @@ const shouldShowSubscriptionModal = (itemName: string): boolean => {
   if (!isTransporter.value) return false
   if (!userStore.showSubscriptionModel) return false
   if (itemName === 'Add Jobs' || itemName === 'View Jobs') return true
-  if (itemName === 'View Applications') return !userStore.hasPremium
+  if (itemName === 'View Applications' || itemName === 'RC Check' || itemName === 'Challan Check') return !userStore.hasTransporter499Plan
   return false
 }
 
 const handleAction = (itemName: string) => {
   if (shouldShowSubscriptionModal(itemName)) {
+    if (['RC Check', 'Challan Check', 'View Applications'].includes(itemName)) {
+      userStore.setSubscriptionModal({ visible: true, minPrice: 499 })
+    }
     appStore.setShowSubscriptionModal(true)
     return
   }
@@ -83,11 +87,26 @@ const handleAction = (itemName: string) => {
     'View Applications': 'view-applications',
     'Add Driver': 'add-driver',
     'Driver List': 'driver-list',
-    'Get Your Driver Verified': 'dashboard',
-    'RC Check': 'dashboard',
-    'Challan Check': 'dashboard',
-    'Invite Driver for a Job': 'dashboard',
-    'Video Interview': 'dashboard',
+    'Get Your Driver Verified': 'verify-driver',
+    'Upload Driver Documents': 'verify-driver-documents',
+    'RC Check': 'rc-check',
+    'RC Check Result': 'rc-check-result',
+    'Challan Check': 'challan-check',
+    'Invite Driver for a Job': 'driver-invites',
+    'Video Interview': 'video-interview',
+    'Driver Ki Awaz': 'driver-ki-awaz',
+    'TM Load Mandal': 'tm-load-mandal',
+    'Fuel Discount': 'fuel-discount',
+    'Transporter Tailored Loan': 'transporter-loan',
+    'Truck Insurance': 'truck-insurance',
+    'Second Hand Truck Marketplace': 'truck-marketplace',
+    'Profile': 'profile',
+    'View Full Profile': 'profile-overview',
+    'Edit Profile': 'profile-edit',
+    'Privacy Policy': 'privacy-policy',
+    'Rate Us': 'rate-us',
+    'App Settings': 'app-settings',
+    'Contact Us': 'contact-us',
     'All Available Jobs': 'view-jobs',
     'Applied Jobs': 'view-applications',
     'Jobs That Suit You': 'view-jobs',
@@ -99,6 +118,7 @@ const handleAction = (itemName: string) => {
     'Get Digital Address Check': 'dashboard',
     'Job Invite by Transporter': 'dashboard',
     'Call Job Manager': 'dashboard',
+    'Driver Ki Awaz': 'driver-ki-awaz',
   }
   const view = map[itemName]
   if (view) emit('navigate', view)
@@ -135,19 +155,27 @@ const transporterSections = [
     title: 'Communication',
     icon: MessageSquare,
     items: [
+      { name: 'Driver Ki Awaz', desc: 'Watch reels & share your voice.', image: 'https://cdn-icons-png.flaticon.com/512/3179/3179068.png' },
       { name: 'Invite Driver for a Job', desc: 'Send job invitations.', image: 'https://cdn-icons-png.flaticon.com/512/6003/6003724.png' },
       { name: 'Video Interview', desc: 'Conduct virtual interviews.', image: 'https://cdn-icons-png.flaticon.com/512/1256/1256650.png' },
     ],
   },
   {
-    title: 'Coming Soon',
-    icon: Clock,
+    title: 'Services & Finance',
+    icon: Banknote,
     items: [
       { name: 'TM Load Mandal', desc: 'Find load matches.', image: 'https://cdn-icons-png.flaticon.com/512/2271/2271113.png' },
       { name: 'Fuel Discount', desc: 'Savings on fuel networks.', image: 'https://cdn-icons-png.flaticon.com/512/2311/2311324.png' },
       { name: 'Transporter Tailored Loan', desc: 'Solutions for transporters.', emoji: '💰' },
       { name: 'Truck Insurance', desc: 'Protect your fleet.', emoji: '🛡️' },
       { name: 'Second Hand Truck Marketplace', desc: 'Trade reliable vehicles.', emoji: '🚛' },
+      { name: 'RC Check Result', desc: 'View RC verification results.', image: 'https://cdn-icons-png.flaticon.com/512/3097/3097180.png' },
+    ],
+  },
+  {
+    title: 'Coming Soon',
+    icon: Clock,
+    items: [
       { name: 'Fleet Management System', desc: 'Complete operational control.', emoji: '📊' },
     ],
   },
@@ -185,6 +213,7 @@ const driverSections = [
     title: 'Communication',
     icon: MessageSquare,
     items: [
+      { name: 'Driver Ki Awaz', desc: 'Watch reels & share your voice.', image: 'https://cdn-icons-png.flaticon.com/512/3179/3179068.png' },
       { name: 'Job Invite by Transporter', desc: 'View job invitations.', image: 'https://cdn-icons-png.flaticon.com/512/6003/6003724.png' },
       { name: 'Call Job Manager', desc: 'Get support.', image: 'https://cdn-icons-png.flaticon.com/512/724/724664.png' },
     ],
@@ -201,6 +230,10 @@ const driverSections = [
     title: 'Coming Soon',
     icon: Clock,
     items: [
+      { name: 'TM Load Mandal', desc: 'Find load matches.', image: 'https://cdn-icons-png.flaticon.com/512/2271/2271113.png' },
+      { name: 'Fuel Discount', desc: 'Save on fuel costs.', image: 'https://cdn-icons-png.flaticon.com/512/2311/2311324.png' },
+      { name: 'Transporter Tailored Loan', desc: 'Growth for your business.', emoji: '💰' },
+      { name: 'Truck Insurance', desc: 'Secure your fleet.', emoji: '🛡️' },
       { name: 'Driver Trip Wallet', desc: 'Manage trip earnings.', image: 'https://cdn-icons-png.flaticon.com/512/855/855279.png' },
       { name: 'TruckMitr Dhaba', desc: 'Food and rest stops.', image: 'https://cdn-icons-png.flaticon.com/512/1046/1046857.png' },
       { name: 'TruckMitr Suvidha Kendra', desc: 'Support centers.', emoji: '🏢' },
@@ -227,7 +260,7 @@ const bannerImageUrl = computed(() => {
         <div class="banner-overlay" />
       </div>
       <div class="banner-content">
-        <div class="banner-tag">{{ isDriver ? 'Driver Portal' : 'Enterprise HR Solution' }}</div>
+        <div class="banner-tag">{{ isDriver ? 'Driver Portal' : '' }}</div>
         <h2 class="banner-title">
           {{ isDriver ? `Hi, ${displayName}` : 'Hiring Made Simple (2026)' }}
         </h2>

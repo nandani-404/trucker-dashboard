@@ -346,7 +346,7 @@ const toggleCheckbox = () => {
             <input
               v-model="otp"
               type="text"
-              placeholder="4 or 6 digit OTP"
+              placeholder="4 digit OTP"
               maxlength="6"
               inputmode="numeric"
               :class="{ error: errors.checkBox }"

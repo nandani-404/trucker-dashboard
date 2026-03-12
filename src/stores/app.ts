@@ -14,6 +14,10 @@ export const useAppStore = defineStore('app', {
     showProfileCompletion: false,
     showSubscriptionModal: false,
     signupPreSelectedRole: 'driver' as string,
+    rcVerificationNumber: '' as string,
+    rcVerificationData: null as Record<string, unknown> | null,
+    challanVerificationVehicleNumber: '' as string,
+    challanVerificationResults: [] as Record<string, unknown>[],
   }),
   getters: {
     canGoBack: (state) => state.viewHistory.length > 1,
@@ -57,12 +61,24 @@ export const useAppStore = defineStore('app', {
     setSignupPreSelectedRole(role: string) {
       this.signupPreSelectedRole = role
     },
+    setRcVerificationResult(rcNumber: string, rcData: Record<string, unknown> | null) {
+      this.rcVerificationNumber = rcNumber
+      this.rcVerificationData = rcData
+    },
+    setChallanVerificationResult(vehicleNumber: string, results: Record<string, unknown>[]) {
+      this.challanVerificationVehicleNumber = vehicleNumber
+      this.challanVerificationResults = results
+    },
     resetOnLogout() {
       this.currentView = 'home'
       this.viewHistory = ['home']
       this.authScreen = 'login'
       this.showProfileCompletion = false
       this.showSubscriptionModal = false
+      this.rcVerificationNumber = ''
+      this.rcVerificationData = null
+      this.challanVerificationVehicleNumber = ''
+      this.challanVerificationResults = []
     },
   },
 })

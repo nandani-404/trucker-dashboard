@@ -23,6 +23,7 @@ export const useUserStore = defineStore('user', {
     subscriptionDetails: null as {
       showSubscriptionModel: boolean
       hasActiveSubscription: boolean
+      hasTransporter499: boolean
       [key: string]: unknown
     } | null,
     subscriptionModal: false,
@@ -42,6 +43,8 @@ export const useUserStore = defineStore('user', {
       state.subscriptionDetails?.showSubscriptionModel ?? false,
     hasPremium: (state) =>
       state.subscriptionDetails?.hasActiveSubscription ?? false,
+    hasTransporter499Plan: (state) =>
+      state.subscriptionDetails?.hasTransporter499 ?? false,
   },
   actions: {
     setUserAuthenticated(payload: boolean) {
@@ -81,12 +84,14 @@ export const useUserStore = defineStore('user', {
         this.subscriptionDetails = {
           showSubscriptionModel: res.showSubscriptionModel,
           hasActiveSubscription: res.hasPremium,
+          hasTransporter499: res.hasTransporter499,
         }
         return res
       } catch {
         this.subscriptionDetails = {
           showSubscriptionModel: false,
           hasActiveSubscription: false,
+          hasTransporter499: false,
         }
         return null
       }
