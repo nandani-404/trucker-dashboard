@@ -276,7 +276,54 @@ const submitProfile = async () => {
   }
 }
 
+const isStepValid = computed(() => {
+  const page = currentPage.value
+  const fd = formData.value
+
+  if (userRole.value === 'driver') {
+    if (page === 0) {
+      return !!(fd.DOB?.trim() && fd.Sex?.trim() && fd.education?.trim())
+    }
+    if (page === 1) {
+      return !!(
+        fd.vehicle_type?.trim() &&
+        fd.Driving_Experience?.trim() &&
+        fd.Type_of_License?.trim() &&
+        fd.current_salary?.trim() &&
+        fd.expected_salary?.trim() &&
+        fd.truck_ownership?.trim()
+      )
+    }
+    if (page === 2) {
+      return !!(
+        fd.profileFile &&
+        fd.License_Number?.trim() &&
+        fd.Expiry_date_of_License?.trim() &&
+        fd.states?.trim()
+      )
+    }
+  } else {
+    // transporter
+    if (page === 0) {
+      return !!(fd.year_of_exp?.trim() && fd.fleet_size?.trim())
+    }
+    if (page === 1) {
+      return !!(
+        fd.industry_segment?.trim() &&
+        fd.avg_km_run?.trim() &&
+        fd.vehicle_type?.trim() &&
+        fd.operational_segment?.trim()
+      )
+    }
+    if (page === 2) {
+      return !!fd.pan?.trim()
+    }
+  }
+  return false
+})
+
 const handleNext = () => {
+  if (!isStepValid.value && currentPage.value < PAGES - 1) return
   if (currentPage.value < PAGES - 1) {
     currentPage.value++
   } else {
@@ -511,24 +558,23 @@ const handleBack = () => {
         </template>
       </div>
 
-      <!-- Page 3: Documents & Address -->
+      <!-- Page 3: Documents & Address (driver) | PAN & GST only (transporter) -->
       <div v-show="currentPage === 2" class="page">
-        <h3>Documents & Address</h3>
-
-        <div class="field">
-          <label>Profile Photo *</label>
-          <div class="profile-photo-upload">
-            <div v-if="profilePreviewUrl" class="photo-preview">
-              <img :src="profilePreviewUrl" alt="Profile preview" class="photo-preview-img" />
-            </div>
-            <div class="file-upload">
-              <input type="file" accept="image/*" @change="handleProfileFile" />
-              <span>{{ formData.profileFile?.name || 'Choose file' }}</span>
-            </div>
-          </div>
-        </div>
+        <h3>{{ userRole === 'transporter' ? 'Business Documents' : 'Documents & Address' }}</h3>
 
         <template v-if="userRole === 'driver'">
+          <div class="field">
+            <label>Profile Photo *</label>
+            <div class="profile-photo-upload">
+              <div v-if="profilePreviewUrl" class="photo-preview">
+                <img :src="profilePreviewUrl" alt="Profile preview" class="photo-preview-img" />
+              </div>
+              <div class="file-upload">
+                <input type="file" accept="image/*" @change="handleProfileFile" />
+                <span>{{ formData.profileFile?.name || 'Choose file' }}</span>
+              </div>
+            </div>
+          </div>
           <div class="form-row">
             <div class="field">
               <label>License Number *</label>
@@ -539,13 +585,37 @@ const handleBack = () => {
               <input v-model="formData.Expiry_date_of_License" type="date" />
             </div>
           </div>
+          <div class="form-row">
+            <div class="field">
+              <label>State *</label>
+              <select v-model="formData.states">
+                <option value="">Select state</option>
+                <option v-for="s in statesList" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>City</label>
+              <input v-model="formData.city" type="text" placeholder="City" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Pincode</label>
+              <input v-model="formData.pincode" type="text" placeholder="Pincode" maxlength="6" />
+            </div>
+            <div class="field">
+              <label>Address</label>
+              <input v-model="formData.address" type="text" placeholder="Address" />
+            </div>
+          </div>
         </template>
 
         <template v-else>
+          <!-- Transporter: only PAN and GST -->
           <div class="form-row">
             <div class="field">
-              <label>PAN Number</label>
-              <input v-model="formData.pan" type="text" placeholder="ABCDE1234F" maxlength="10" />
+              <label>PAN Number *</label>
+              <input v-model="formData.pan" type="text" placeholder="e.g. ABCDE1234F" maxlength="10" />
             </div>
             <div class="field">
               <label>GST Number</label>
@@ -553,30 +623,6 @@ const handleBack = () => {
             </div>
           </div>
         </template>
-
-        <div class="form-row">
-          <div class="field">
-            <label>State *</label>
-            <select v-model="formData.states">
-              <option value="">Select state</option>
-              <option v-for="s in statesList" :key="s.id" :value="String(s.id)">{{ s.name }}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>City</label>
-            <input v-model="formData.city" type="text" placeholder="City" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label>Pincode</label>
-            <input v-model="formData.pincode" type="text" placeholder="Pincode" maxlength="6" />
-          </div>
-          <div class="field">
-            <label>Address</label>
-            <input v-model="formData.address" type="text" placeholder="Address" />
-          </div>
-        </div>
       </div>
       </div>
     </main>
@@ -586,7 +632,7 @@ const handleBack = () => {
         <button
           type="button"
           class="next-btn"
-          :disabled="loading"
+          :disabled="loading || !isStepValid"
           @click="handleNext"
         >
           <span v-if="!loading">{{ currentPage === PAGES - 1 ? 'Finish' : 'Next' }}</span>
