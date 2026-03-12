@@ -173,6 +173,17 @@ const handleLoginSuccess = async (user: any) => {
   }
 }
 
+const clearAllBrowserCaches = async () => {
+  localStorage.clear()
+  sessionStorage.clear()
+  if ('caches' in window) {
+    try {
+      const names = await caches.keys()
+      await Promise.all(names.map((n) => caches.delete(n)))
+    } catch { /* ignore */ }
+  }
+}
+
 const handleLogout = async () => {
   try {
     await apiPost(END_POINTS.LOGOUT)
@@ -180,7 +191,7 @@ const handleLogout = async () => {
   userStore.reset()
   authStore.logout()
   appStore.resetOnLogout()
-  localStorage.removeItem(STORAGE_KEY)
+  await clearAllBrowserCaches()
   history.replaceState({}, '', '/')
 }
 

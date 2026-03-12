@@ -16,6 +16,7 @@ const otp = ref('')
 const step = ref(1)
 const loading = ref(false)
 const error = ref('')
+const showTransporterOnlyPopup = ref(false)
 
 function clearError() {
   error.value = ''
@@ -80,18 +81,24 @@ async function verifyOtp() {
     const userData = res?.user ?? data?.user
 
     if ((res?.status || res?.success) && token) {
-      let t = String(token)
-      if (t.startsWith('Bearer ')) t = t.replace('Bearer ', '')
-      setAuthToken(t)
       const user = (userData || {
         name: '',
         name_eng: '',
         mobile: mobile.value.trim(),
         email: '',
-        role: 'transporter',
+        role: '',
       }) as Record<string, unknown>
-      setUser(user)
-      emit('login-success', user)
+      const role = String(user?.role || '').toLowerCase().trim()
+
+      if (role === 'transporter') {
+        let t = String(token)
+        if (t.startsWith('Bearer ')) t = t.replace('Bearer ', '')
+        setAuthToken(t)
+        setUser(user)
+        emit('login-success', user)
+      } else {
+        showTransporterOnlyPopup.value = true
+      }
     } else {
       error.value = (res as { message?: string })?.message || 'Invalid OTP'
     }
@@ -104,6 +111,13 @@ async function verifyOtp() {
 
 function handleNavigateSignup() {
   emit('navigate-signup')
+}
+
+function closeTransporterPopup() {
+  showTransporterOnlyPopup.value = false
+  step.value = 1
+  otp.value = ''
+  clearError()
 }
 </script>
 
@@ -172,6 +186,18 @@ function handleNavigateSignup() {
         <button type="button" class="link-btn" @click="handleNavigateSignup">Register now</button>
       </div>
     </main>
+
+    <!-- Transporter-only popup -->
+    <Teleport to="body">
+      <div v-if="showTransporterOnlyPopup" class="popup-overlay" @click.self="closeTransporterPopup">
+        <div class="popup-card">
+          <div class="popup-icon">⚠️</div>
+          <h3 class="popup-title">Oops, you are not a transporter</h3>
+          <p class="popup-message">For now only transporter can access this website.</p>
+          <button type="button" class="popup-btn" @click="closeTransporterPopup">Back to login</button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -360,5 +386,62 @@ function handleNavigateSignup() {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Transporter-only popup */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+}
+
+.popup-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.popup-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.popup-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px 0;
+}
+
+.popup-message {
+  font-size: 15px;
+  color: #64748b;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.popup-btn {
+  width: 100%;
+  padding: 14px 24px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.popup-btn:hover {
+  background: #2563eb;
 }
 </style>
