@@ -56,9 +56,10 @@ const profileImageUrl = computed(() => {
   return path
 })
 
-const whatsappLink = computed(() =>
-  (profileData.value?.whatsapp_link as string) || (props.user?.whatsapp_link as string) || ''
-)
+const displayRole = computed(() => {
+  const r = props.user?.role || 'User'
+  return String(r).toLowerCase() === 'shipper' ? 'Transporter' : r
+})
 
 const isDriver = computed(() =>
   ['driver', 'foreman', 'association'].includes(String(props.user?.role || '').toLowerCase())
@@ -151,7 +152,8 @@ onMounted(async () => {
           </h1>
           <div class="user-meta">
             <span class="user-id">{{ displayTmId }}</span>
-            <span class="user-role">{{ user.role || 'User' }}</span>
+            <span class="dot-separator">•</span>
+            <span class="user-role">{{ displayRole }}</span>
           </div>
         </div>
 
@@ -179,15 +181,15 @@ onMounted(async () => {
           </button>
 
           <a
-            v-if="whatsappLink"
-            :href="whatsappLink"
+            href="https://wa.me/919254972811"
             target="_blank"
             rel="noopener noreferrer"
             class="action-btn whatsapp-btn"
           >
             <img
               src="https://upload.wikimedia.org/wikipedia/commons/5/5e/WhatsApp_icon.png"
-              class="btn-img-icon whatsapp-img"
+              class="btn-img-icon"
+              style="filter: none;"
               alt="WhatsApp"
             />
             Join WhatsApp
@@ -209,8 +211,10 @@ onMounted(async () => {
             </svg>
             <div class="avatar-inner">
               <img v-if="profileImageUrl" :src="profileImageUrl" alt="Profile" class="avatar-img" />
-              <User v-else :size="28" color="#1e40af" />
-              <div class="avatar-badge">{{ profileCompletion }}%</div>
+              <User v-else :size="24" color="#ff6b00" />
+            </div>
+            <div class="avatar-badge-pill">
+              {{ profileCompletion }}%
             </div>
             <div class="logout-overlay">
               <LogOut :size="20" color="#ffffff" />
@@ -526,8 +530,8 @@ onMounted(async () => {
 
 .ring-progress {
   fill: none;
-  stroke: #fbbf24;
-  stroke-width: 3;
+  stroke: #ff6b00; /* Vibrant Orange */
+  stroke-width: 3.5;
   stroke-dasharray: 138;
   stroke-dashoffset: 138;
   stroke-linecap: round;
@@ -554,16 +558,19 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.avatar-badge {
+.avatar-badge-pill {
   position: absolute;
-  bottom: -8px;
-  background: #ffffff;
-  color: #16a34a;
-  font-size: 9px;
+  bottom: 0px;
+  right: -2px;
+  background: #ff6b00;
+  color: #ffffff;
+  font-size: 10px;
   font-weight: 800;
   padding: 2px 6px;
-  border-radius: 10px;
-  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 5;
 }
 
 .logout-overlay {
