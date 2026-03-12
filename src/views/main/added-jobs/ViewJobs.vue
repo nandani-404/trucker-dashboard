@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   ArrowLeft,
   ClipboardList,
@@ -12,74 +12,193 @@ import {
   Plus,
   LayoutGrid,
   List,
+  Pencil,
+  Loader2,
 } from 'lucide-vue-next'
+import { apiGet, apiPostForm, END_POINTS } from '../../../services/config/api'
+import { useJobStore } from '../../../stores/job'
+import { useUserStore } from '../../../stores/user'
+import { useAppStore } from '../../../stores/app'
+import type { ApiJob } from '../../../stores/job'
 
 const emit = defineEmits(['back', 'navigate'])
 
-/* ─── Sample Jobs Data ─── */
-const jobs = ref([
-  {
-    id: 'TMJB00592',
-    date: '23 Dec 2025',
-    title: '₹18,000 सैलरी + ₹300 रोज़ का खाना + इंसेंटिव | HMV ड्राइवर चाहिए | 6 व्हीलर Tata Ultra 💰',
-    salaryMin: 20000,
-    salaryMax: 25000,
-    location: 'Rajasthan',
-    driversNeeded: 1,
-    expiryDate: '20 Mar 2026',
-    status: 'Active',
-    approval: 'Approved',
-    isActive: true,
-  },
-  {
-    id: 'TMJB00593',
-    date: '15 Jan 2026',
-    title: '₹22,000 सैलरी + Accommodation | LMV Driver Required | Tata Ace Gold',
-    salaryMin: 22000,
-    salaryMax: 28000,
-    location: 'Gujarat',
-    driversNeeded: 2,
-    expiryDate: '15 Apr 2026',
-    status: 'Active',
-    approval: 'Approved',
-    isActive: true,
-  },
-  {
-    id: 'TMJB00594',
-    date: '02 Feb 2026',
-    title: '₹25,000 + ₹500 Daily Allowance | HMV Driver for Long Route | Ashok Leyland 12 Wheeler',
-    salaryMin: 25000,
-    salaryMax: 32000,
-    location: 'Maharashtra',
-    driversNeeded: 3,
-    expiryDate: '02 May 2026',
-    status: 'Active',
-    approval: 'Pending',
-    isActive: true,
-  },
-])
+const jobStore = useJobStore()
+const userStore = useUserStore()
+const appStore = useAppStore()
 
+const jobs = ref<ApiJob[]>([])
+const locations = ref<{ id?: number; name?: string }[]>([])
+const loading = ref(true)
 const searchQuery = ref('')
 const viewMode = ref<'grid' | 'list'>('list')
+const togglingId = ref<string | null>(null)
+
+/** Fetch jobs from API */
+async function fetchJobs(searchTerm: string = '') {
+  try {
+    loading.value = true
+    const res: any = await apiGet(END_POINTS.TRANSPORTER_ALL_JOBS(searchTerm))
+    if (res?.status && Array.isArray(res?.data)) {
+      jobs.value = res.data
+    } else {
+      jobs.value = []
+    }
+  } catch (err) {
+    console.error('Error fetching jobs:', err)
+    jobs.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+/** Fetch locations (states) for display */
+async function fetchLocations() {
+  try {
+    const res: any = await apiGet(END_POINTS.GETSTATES)
+    if (res?.status && Array.isArray(res?.data)) {
+      locations.value = res.data
+    }
+  } catch (err) {
+    console.error('Error fetching locations:', err)
+  }
+}
+
+/** Resolve location name from id or string */
+function getLocationName(item: ApiJob): string {
+  const loc = item?.job_location
+  if (!loc) return ''
+  const found = locations.value.find(
+    (s) =>
+      s.name?.toLowerCase() === String(loc).toLowerCase() ||
+      s.id === Number(loc)
+  )
+  return found?.name || String(loc)
+}
+
+/** Format expiry date */
+function formatExpiry(item: ApiJob): string {
+  const d = item?.Application_Deadline || item?.application_deadline
+  if (!d) return 'N/A'
+  try {
+    const m = new Date(d)
+    if (!isNaN(m.getTime())) {
+      return m.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    }
+  } catch {}
+  return String(d)
+}
+
+/** Format created date */
+function formatDate(item: ApiJob): string {
+  const d = item?.Created_at
+  if (!d) return ''
+  try {
+    const m = new Date(d)
+    if (!isNaN(m.getTime())) {
+      return m.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    }
+  } catch {}
+  return String(d)
+}
+
+/** Job is active (1) or inactive (0) */
+function isActive(item: ApiJob): boolean {
+  return Number(item?.active_inactive) === 1
+}
+
+/** Job is approved (1) or pending (0) */
+function isApproved(item: ApiJob): boolean {
+  return Number(item?.status) === 1
+}
+
+/** Subscription badge type */
+function getSubscriptionType(item: ApiJob): string {
+  const plan = item?.subscription_plan_name
+  if (plan === 'premium_job') return 'PREMIUM'
+  if (plan === 'super_premium_job') return 'SUPER PREMIUM'
+  return 'STANDARD'
+}
 
 const filteredJobs = computed(() => {
   if (!searchQuery.value.trim()) return jobs.value
   const q = searchQuery.value.toLowerCase()
-  return jobs.value.filter(j =>
-    j.title.toLowerCase().includes(q) ||
-    j.id.toLowerCase().includes(q) ||
-    j.location.toLowerCase().includes(q)
+  return jobs.value.filter(
+    (j) =>
+      (j.job_title || '').toLowerCase().includes(q) ||
+      (j.job_id || '').toLowerCase().includes(q) ||
+      getLocationName(j).toLowerCase().includes(q)
   )
 })
 
-const toggleJob = (job: any) => {
-  job.isActive = !job.isActive
-  job.status = job.isActive ? 'Active' : 'Inactive'
+/** Toggle job active/inactive */
+async function toggleJob(item: ApiJob) {
+  const jid = String(item?.job_id ?? item?.id ?? '')
+  if (!jid) return
+  togglingId.value = jid
+  try {
+    const fd = new FormData()
+    fd.append('job_id', jid)
+    const res: any = await apiPostForm(END_POINTS.JOB_UPDATE_STATUS, fd)
+    if (res?.status && res?.data?.active_inactive !== undefined) {
+      const idx = jobs.value.findIndex((j) => String(j?.job_id ?? j?.id) === jid)
+      if (idx >= 0) {
+        jobs.value = [...jobs.value]
+        jobs.value[idx] = { ...jobs.value[idx], active_inactive: Number(res.data.active_inactive) }
+      }
+    }
+  } catch (err) {
+    console.error('Toggle job error:', err)
+  } finally {
+    togglingId.value = null
+  }
 }
 
-const formatSalary = (min: number, max: number) => {
-  return `₹${min.toLocaleString('en-IN')} - ₹${max.toLocaleString('en-IN')}`
+/** Edit job (status === 0 only) */
+function handleEdit(item: ApiJob) {
+  jobStore.setEditingJob({ ...item })
+  jobStore.clearAddJob()
+  emit('navigate', 'job-summary')
 }
+
+/** Invite drivers */
+function handleInvite(item: ApiJob) {
+  if (userStore.showSubscriptionModel && userStore.isTransporter) {
+    if (!appStore.showSubscriptionModal) {
+      appStore.setShowSubscriptionModal(true)
+    }
+    return
+  }
+  const jid = String(item?.job_id ?? item?.id ?? '')
+  if (jid) {
+    jobStore.setInviteJobId(jid)
+  }
+  emit('navigate', 'driver-list')
+}
+
+/** Add job FAB - parent handleNavigate handles subscription check */
+function handleAddJob() {
+  jobStore.clearAll()
+  emit('navigate', 'add-job')
+}
+
+/** Show invite button only when approved and active */
+const canInvite = (item: ApiJob) => isApproved(item) && isActive(item)
+
+/** Debounced search */
+watch(searchQuery, (val) => {
+  if (!val.trim()) {
+    fetchJobs('')
+    return
+  }
+  const t = setTimeout(() => fetchJobs(val), 500)
+  return () => clearTimeout(t)
+})
+
+onMounted(() => {
+  fetchJobs(searchQuery.value)
+  fetchLocations()
+})
 </script>
 
 <template>
@@ -134,33 +253,67 @@ const formatSalary = (min: number, max: number) => {
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">
+      <Loader2 class="loading-spinner" :size="40" />
+      <p>Loading jobs...</p>
+    </div>
+
     <!-- Job Cards -->
-    <div class="jobs-container" :class="{ 'grid-mode': viewMode === 'grid' }">
+    <div v-else class="jobs-container" :class="{ 'grid-mode': viewMode === 'grid' }">
       <TransitionGroup name="card-list" tag="div" class="jobs-list">
         <div
           v-for="(job, index) in filteredJobs"
-          :key="job.id"
+          :key="String(job.job_id ?? job.id ?? index)"
           class="job-card"
+          :class="{
+            'card-premium': getSubscriptionType(job) === 'PREMIUM',
+            'card-super-premium': getSubscriptionType(job) === 'SUPER PREMIUM',
+          }"
           :style="{ animationDelay: index * 0.08 + 's' }"
         >
-          <!-- Card Top: Title + Toggle -->
+          <!-- Subscription Badge -->
+          <div
+            v-if="getSubscriptionType(job) !== 'STANDARD'"
+            class="subscription-badge"
+            :class="{
+              'badge-premium': getSubscriptionType(job) === 'PREMIUM',
+              'badge-super-premium': getSubscriptionType(job) === 'SUPER PREMIUM',
+            }"
+          >
+            {{ getSubscriptionType(job) }}
+          </div>
+
+          <!-- Card Top: Title + Edit + Toggle -->
           <div class="card-top">
             <div class="card-title-area">
-              <h3 class="job-title">{{ job.title }}</h3>
+              <h3 class="job-title">{{ job.job_title || 'Untitled Job' }}</h3>
               <div class="job-meta">
-                <span class="job-id">{{ job.id }}</span>
+                <span class="job-id">{{ job.job_id || job.id }}</span>
                 <span class="dot">·</span>
-                <span class="job-date">{{ job.date }}</span>
+                <span class="job-date">{{ formatDate(job) }}</span>
               </div>
             </div>
-            <button
-              class="toggle-switch"
-              :class="{ on: job.isActive }"
-              @click.stop="toggleJob(job)"
-              :title="job.isActive ? 'Deactivate Job' : 'Activate Job'"
-            >
-              <div class="toggle-knob"></div>
-            </button>
+            <div class="card-actions">
+              <button
+                v-if="!isApproved(job)"
+                class="edit-btn"
+                @click.stop="handleEdit(job)"
+                title="Edit Job"
+              >
+                <Pencil :size="16" />
+              </button>
+              <button
+                class="toggle-switch"
+                :class="{ on: isActive(job) }"
+                :disabled="togglingId === String(job.job_id ?? job.id)"
+                @click.stop="toggleJob(job)"
+                :title="isActive(job) ? 'Deactivate Job' : 'Activate Job'"
+              >
+                <Loader2 v-if="togglingId === String(job.job_id ?? job.id)" class="toggle-loader" :size="14" />
+                <div v-else class="toggle-knob"></div>
+              </button>
+            </div>
           </div>
 
           <!-- Divider -->
@@ -174,7 +327,7 @@ const formatSalary = (min: number, max: number) => {
               </div>
               <div class="detail-content">
                 <span class="detail-label">Salary</span>
-                <span class="detail-value">{{ formatSalary(job.salaryMin, job.salaryMax) }}</span>
+                <span class="detail-value">{{ job.Salary_Range || 'N/A' }}</span>
               </div>
             </div>
 
@@ -184,7 +337,7 @@ const formatSalary = (min: number, max: number) => {
               </div>
               <div class="detail-content">
                 <span class="detail-label">Location</span>
-                <span class="detail-value">{{ job.location }}</span>
+                <span class="detail-value">{{ getLocationName(job) || 'N/A' }}</span>
               </div>
             </div>
 
@@ -194,7 +347,7 @@ const formatSalary = (min: number, max: number) => {
               </div>
               <div class="detail-content">
                 <span class="detail-label">No. of Drivers</span>
-                <span class="detail-value">{{ job.driversNeeded }}</span>
+                <span class="detail-value">{{ job.number_of_drivers_required ?? 'N/A' }}</span>
               </div>
             </div>
 
@@ -204,7 +357,7 @@ const formatSalary = (min: number, max: number) => {
               </div>
               <div class="detail-content">
                 <span class="detail-label">Expiry Date</span>
-                <span class="detail-value">{{ job.expiryDate }}</span>
+                <span class="detail-value">{{ formatExpiry(job) }}</span>
               </div>
             </div>
           </div>
@@ -216,12 +369,12 @@ const formatSalary = (min: number, max: number) => {
               <span
                 class="status-badge"
                 :class="{
-                  'badge-active': job.status === 'Active',
-                  'badge-inactive': job.status === 'Inactive'
+                  'badge-active': isActive(job),
+                  'badge-inactive': !isActive(job),
                 }"
               >
                 <span class="status-dot"></span>
-                {{ job.status }}
+                {{ isActive(job) ? 'Active' : 'Inactive' }}
               </span>
             </div>
             <div class="status-group">
@@ -229,19 +382,22 @@ const formatSalary = (min: number, max: number) => {
               <span
                 class="status-badge"
                 :class="{
-                  'badge-approved': job.approval === 'Approved',
-                  'badge-pending': job.approval === 'Pending'
+                  'badge-approved': isApproved(job),
+                  'badge-pending': !isApproved(job),
                 }"
               >
                 <span class="status-dot"></span>
-                {{ job.approval }}
+                {{ isApproved(job) ? 'Approved' : 'Pending' }}
               </span>
             </div>
-
           </div>
 
-          <!-- Action Button -->
-          <button class="invite-btn">
+          <!-- Invite Button (only when approved and active) -->
+          <button
+            v-if="canInvite(job)"
+            class="invite-btn"
+            @click="handleInvite(job)"
+          >
             <UserPlus :size="18" />
             <span>Invite Drivers</span>
           </button>
@@ -251,13 +407,13 @@ const formatSalary = (min: number, max: number) => {
       <!-- Empty State -->
       <div v-if="filteredJobs.length === 0" class="empty-state">
         <div class="empty-icon">🔍</div>
-        <h3>No jobs found</h3>
-        <p>Try adjusting your search or filters</p>
+        <h3>{{ searchQuery.trim() ? 'No jobs found' : 'No jobs yet' }}</h3>
+        <p>{{ searchQuery.trim() ? 'Try adjusting your search or filters' : "You haven't posted any jobs yet. Please add a job now." }}</p>
       </div>
     </div>
 
     <!-- Floating Add Job Button -->
-    <button class="fab-add-job" @click="emit('navigate', 'add-job')" title="Add New Job">
+    <button class="fab-add-job" @click="handleAddJob" title="Add New Job">
       <Plus :size="22" />
       <span>Add Job</span>
     </button>
@@ -537,6 +693,59 @@ const formatSalary = (min: number, max: number) => {
   100% { background-position: 200% 0%; }
 }
 
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 24px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.loading-spinner {
+  animation: spin 0.8s linear infinite;
+  color: #2563eb;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Subscription Badge */
+.subscription-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+}
+
+.badge-premium {
+  background: #FFD700;
+  color: #000000;
+}
+
+.badge-super-premium {
+  background: #E1AD01;
+  color: #FFFFFF;
+}
+
+.card-premium {
+  border-color: #FFD700 !important;
+  border-width: 1.5px;
+}
+
+.card-super-premium {
+  border-color: #E1AD01 !important;
+  border-width: 2px;
+}
+
 /* Card Top */
 .card-top {
   display: flex;
@@ -547,6 +756,32 @@ const formatSalary = (min: number, max: number) => {
 
 .card-title-area {
   flex: 1;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.edit-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(0, 0, 0, 0.04);
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.edit-btn:hover {
+  background: #eff6ff;
+  color: #1e40af;
 }
 
 .job-title {
@@ -615,6 +850,16 @@ const formatSalary = (min: number, max: number) => {
 
 .toggle-switch.on .toggle-knob {
   transform: translateX(22px);
+}
+
+.toggle-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.toggle-loader {
+  color: #fff;
+  animation: spin 0.8s linear infinite;
 }
 
 /* Card Divider */

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import {
   Briefcase,
   MessageSquare,
   LayoutDashboard,
   ArrowLeft,
+  Loader2,
 } from 'lucide-vue-next'
+import { apiGet, END_POINTS } from '../../../services/config/api'
 
 const props = defineProps<{
   user: {
@@ -17,55 +19,155 @@ const props = defineProps<{
   }
 }>()
 
-const emit = defineEmits(['back'])
+const emit = defineEmits(['back', 'navigate'])
 
-const jobStats = ref([
+const loading = ref(true)
+
+/** Dashboard data from GET_PROFILE (total_jobs_posted, total_applications, etc.) */
+const dashboard = ref<Record<string, number | undefined>>({})
+
+/** API-fetched counts (override dashboard when available) */
+const totalJobsPosted = ref<number | null>(null)
+const totalApplicants = ref<number | null>(null)
+const totalAddedDrivers = ref<number | null>(null)
+const totalInvites = ref<number | null>(null)
+
+const jobStats = computed(() => [
   {
     label: 'Total Job Posted',
-    value: 0,
+    value: totalJobsPosted.value ?? dashboard.value?.total_jobs_posted ?? 0,
     image: 'https://cdn-icons-png.flaticon.com/512/594/594085.png',
     color: '#3b82f6',
-    bg: '#eff6ff'
+    bg: '#eff6ff',
+    navigateTo: 'view-jobs' as const,
   },
   {
     label: 'Total Applicants',
-    value: 0,
+    value: totalApplicants.value ?? dashboard.value?.total_applications ?? 0,
     image: 'https://cdn-icons-png.flaticon.com/512/11651/11651437.png',
     color: '#8b5cf6',
-    bg: '#f5f3ff'
+    bg: '#f5f3ff',
+    navigateTo: 'view-applications' as const,
   },
   {
     label: 'Total Added Driver',
-    value: 0,
+    value: totalAddedDrivers.value ?? dashboard.value?.total_added_drivers ?? 0,
     image: 'https://cdn-icons-png.flaticon.com/512/6008/6008817.png',
     color: '#10b981',
-    bg: '#ecfdf5'
+    bg: '#ecfdf5',
+    navigateTo: 'driver-list' as const,
   },
 ])
 
-const commStats = ref([
+const commStats = computed(() => [
   {
     label: 'Invite Driver for a Job',
-    value: 0,
+    value: totalInvites.value ?? dashboard.value?.total_invites ?? 0,
     image: 'https://cdn-icons-png.flaticon.com/512/6003/6003724.png',
     color: '#f59e0b',
-    bg: '#fffbeb'
+    bg: '#fffbeb',
+    navigateTo: null as string | null,
   },
   {
     label: 'Video Interview Invitation',
-    value: 0,
+    value: dashboard.value?.total_video_interviews ?? 0,
     image: 'https://cdn-icons-png.flaticon.com/512/1256/1256650.png',
     color: '#ec4899',
-    bg: '#fdf2f8'
+    bg: '#fdf2f8',
+    navigateTo: null as string | null,
   },
   {
     label: 'Call Job Manager',
-    value: 0,
+    value: dashboard.value?.total_job_managers ?? 0,
     image: 'https://cdn-icons-png.flaticon.com/512/455/455705.png',
     color: '#3b82f6',
-    bg: '#eff6ff'
+    bg: '#eff6ff',
+    navigateTo: null as string | null,
   },
 ])
+
+/** Fetch dashboard data from profile and individual APIs (matches main app dashboard/index.tsx) */
+async function fetchDashboard() {
+  loading.value = true
+  try {
+    // 1. GET_PROFILE may include dashboard object (matches main app Redux state.user.dashboard)
+    const profileRes: any = await apiGet(END_POINTS.GET_PROFILE)
+    const profileData = profileRes?.data?.data ?? profileRes?.data ?? profileRes
+    const dash = profileData?.dashboard
+    if (dash && typeof dash === 'object') {
+      dashboard.value = {
+        total_jobs_posted: dash.total_jobs_posted,
+        total_applications: dash.total_applications,
+        total_added_drivers: dash.total_added_drivers,
+        total_invites: dash.total_invites,
+        total_video_interviews: dash.total_video_interviews,
+        total_job_managers: dash.total_job_managers,
+      }
+    }
+
+    // 2. TRANSPORTER_ALL_JOBS - total jobs posted
+    try {
+      const jobsRes: any = await apiGet(END_POINTS.TRANSPORTER_ALL_JOBS(''))
+      if (jobsRes?.status && Array.isArray(jobsRes?.data)) {
+        totalJobsPosted.value = jobsRes.data.length
+      }
+    } catch {
+      totalJobsPosted.value = 0
+    }
+
+    // 3. TRANSPORTER_APPLIED_JOBS_LIST - total applicants (pagination.total)
+    try {
+      const appliedRes: any = await apiGet(`${END_POINTS.TRANSPORTER_APPLIED_JOBS_LIST}?page=1`)
+      const pagination = appliedRes?.pagination
+      if (pagination && typeof pagination.total === 'number') {
+        totalApplicants.value = pagination.total
+      } else if (Array.isArray(appliedRes?.data)) {
+        totalApplicants.value = appliedRes.data.length
+      }
+    } catch {
+      totalApplicants.value = 0
+    }
+
+    // 4. TRANSPORTER_DRIVERS - total added drivers
+    try {
+      const driversRes: any = await apiGet(END_POINTS.TRANSPORTER_DRIVERS(''))
+      if (driversRes?.status && Array.isArray(driversRes?.drivers)) {
+        totalAddedDrivers.value = driversRes.drivers.length
+      } else {
+        totalAddedDrivers.value = 0
+      }
+    } catch {
+      totalAddedDrivers.value = 0
+    }
+
+    // 5. TRANSPORTER_INVITES - total invites (accepted + pending + rejected)
+    try {
+      const invitesRes: any = await apiGet(END_POINTS.TRANSPORTER_INVITES)
+      if (invitesRes?.status) {
+        const accepted = invitesRes.accepted?.length ?? 0
+        const pending = invitesRes.pending?.length ?? 0
+        const rejected = invitesRes.rejected?.length ?? 0
+        totalInvites.value = accepted + pending + rejected
+      } else {
+        totalInvites.value = 0
+      }
+    } catch {
+      totalInvites.value = 0
+    }
+  } catch (err) {
+    console.error('Dashboard fetch error:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+function onStatClick(stat: { navigateTo?: string | null }) {
+  if (stat.navigateTo) {
+    emit('navigate', stat.navigateTo)
+  }
+}
+
+onMounted(fetchDashboard)
 </script>
 
 <template>
@@ -92,8 +194,14 @@ const commStats = ref([
     </div>
 
 
+    <!-- Loading overlay for stats -->
+    <div v-if="loading" class="stats-loading-overlay">
+      <Loader2 class="spin" :size="36" />
+      <span>Loading stats...</span>
+    </div>
+
     <!-- Jobs Management Section -->
-    <section class="stats-section">
+    <section v-show="!loading" class="stats-section">
       <div class="section-header">
         <div class="section-icon-wrap">
           <Briefcase :size="18" color="#1e40af" />
@@ -106,7 +214,9 @@ const commStats = ref([
           v-for="(stat, i) in jobStats"
           :key="i"
           class="stat-card"
+          :class="{ clickable: stat.navigateTo }"
           :style="{ '--card-accent': stat.color, '--card-bg': stat.bg }"
+          @click="onStatClick(stat)"
         >
           <div class="stat-icon-wrap">
             <img :src="stat.image" class="stat-icon-img" :alt="stat.label" />
@@ -118,7 +228,7 @@ const commStats = ref([
     </section>
 
     <!-- Communication Section -->
-    <section class="stats-section">
+    <section v-show="!loading" class="stats-section">
       <div class="section-header">
         <div class="section-icon-wrap">
           <MessageSquare :size="18" color="#1e40af" />
@@ -131,7 +241,9 @@ const commStats = ref([
           v-for="(stat, i) in commStats"
           :key="i"
           class="stat-card"
+          :class="{ clickable: stat.navigateTo }"
           :style="{ '--card-accent': stat.color, '--card-bg': stat.bg }"
+          @click="onStatClick(stat)"
         >
           <div class="stat-icon-wrap">
             <img :src="stat.image" class="stat-icon-img" :alt="stat.label" />
@@ -348,6 +460,35 @@ const commStats = ref([
   color: #64748b;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.stat-card.clickable {
+  cursor: pointer;
+}
+
+.stat-card:not(.clickable) {
+  cursor: default;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.stats-loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  min-height: 120px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 

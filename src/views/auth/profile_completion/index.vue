@@ -5,7 +5,7 @@ import {
   apiGet,
   apiPostForm,
   getUser,
-} from '../../../services/api'
+} from '../../../services/config/api'
 
 // Truck images from assets (same as RN app)
 import openCargoImg from '../../../assets/images/trucks/open_cargo.png'

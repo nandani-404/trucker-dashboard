@@ -6,7 +6,7 @@ import {
   apiGet,
   setAuthToken,
   setUser,
-} from '../../../services/api'
+} from '../../../services/config/api'
 
 const mobileNumber = ref('')
 const otp = ref('')
@@ -14,6 +14,7 @@ const step = ref(1)
 const loading = ref(false)
 const errorMessage = ref('')
 
+const props = defineProps<{ showBackButton?: boolean }>()
 const emit = defineEmits(['login-success', 'navigate-signup', 'back'])
 
 // Validate mobile (same as RN: check not empty)
@@ -143,7 +144,7 @@ const handleBack = () => {
 
 <template>
   <div class="login-container">
-    <button type="button" class="back-to-home" @click="handleBack">← Back</button>
+    <button v-if="showBackButton" type="button" class="back-to-home" @click="handleBack">← Back</button>
     <div class="glass-card">
       <div class="card-header">
         <h2>Welcome to TruckMitr</h2>

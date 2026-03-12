@@ -10,21 +10,20 @@ import {
   GraduationCap,
   ShieldCheck,
 } from 'lucide-vue-next'
-import { apiGet } from '../../../services/api'
-import { END_POINTS, BASE_URL } from '../../../services/api'
+import { apiGet } from '../../../services/config/api'
+import { END_POINTS, BASE_URL } from '../../../services/config/api'
+import { useUserStore } from '../../../stores/user'
+import { useAppStore } from '../../../stores/app'
+import type { UserData } from '../../../stores/user'
 
 const props = defineProps<{
-  user: {
-    name: string
-    mobile: string
-    role: string
-    tm_id?: string
-    unique_id?: string
-    [key: string]: unknown
-  }
+  user: UserData | null
 }>()
 
 const emit = defineEmits(['navigate'])
+
+const userStore = useUserStore()
+const appStore = useAppStore()
 
 const profileData = ref<Record<string, unknown> | null>(null)
 const banners = ref<{ media_url?: string; media_type?: string; redirect_link?: string }[]>([])
@@ -33,6 +32,8 @@ const bannerIndex = ref(0)
 const isDriver = computed(() =>
   ['driver', 'foreman', 'association'].includes(String(props.user?.role || '').toLowerCase())
 )
+
+const isTransporter = computed(() => !isDriver.value)
 
 const displayName = computed(() =>
   (profileData.value?.name as string) || (profileData.value?.name_eng as string) || props.user?.name || 'User'
@@ -43,6 +44,7 @@ onMounted(async () => {
     const [profileRes, bannersRes] = await Promise.all([
       apiGet<{ status?: boolean; data?: Record<string, unknown> }>(END_POINTS.GET_PROFILE),
       apiGet<{ status?: boolean; data?: { media_url?: string; media_type?: string; redirect_link?: string }[] }>(END_POINTS.TRUCKMITRBANNERS),
+      userStore.fetchSubscription(),
     ])
     if (profileRes?.status && profileRes?.data) {
       profileData.value = profileRes.data
@@ -62,7 +64,19 @@ onMounted(async () => {
   }
 })
 
+const shouldShowSubscriptionModal = (itemName: string): boolean => {
+  if (!isTransporter.value) return false
+  if (!userStore.showSubscriptionModel) return false
+  if (itemName === 'Add Jobs' || itemName === 'View Jobs') return true
+  if (itemName === 'View Applications') return !userStore.hasPremium
+  return false
+}
+
 const handleAction = (itemName: string) => {
+  if (shouldShowSubscriptionModal(itemName)) {
+    appStore.setShowSubscriptionModal(true)
+    return
+  }
   const map: Record<string, string> = {
     'Add Jobs': 'add-job',
     'View Jobs': 'view-jobs',
@@ -223,7 +237,7 @@ const bannerImageUrl = computed(() => {
         <button
           v-if="!isDriver"
           class="post-job-btn"
-          @click="emit('navigate', 'add-job')"
+          @click="handleAction('Add Jobs')"
         >
           Post a Job Now
         </button>
@@ -276,6 +290,8 @@ const bannerImageUrl = computed(() => {
         </div>
       </section>
     </div>
+
+    <!-- Subscription modal is global in App.vue, controlled via appStore -->
   </div>
 </template>
 

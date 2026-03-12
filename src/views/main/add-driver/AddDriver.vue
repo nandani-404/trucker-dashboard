@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { 
-  ArrowLeft, User, Phone, Mail, MapPin, ChevronDown, 
-  PlusCircle, Download, FileText, Upload, Users, 
-  FileSpreadsheet, ShieldCheck, CheckCircle2, AlertCircle
+import { ref, onMounted } from 'vue'
+import {
+  ArrowLeft,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  ChevronDown,
+  PlusCircle,
+  Download,
+  Upload,
+  FileSpreadsheet,
+  ShieldCheck,
+  AlertCircle,
+  Loader2,
 } from 'lucide-vue-next'
+import { apiGet, apiPostForm, END_POINTS, BASE_URL } from '../../../services/config/api'
 
-const emit = defineEmits(['back'])
+const emit = defineEmits(['back', 'navigate'])
 
 type TabType = 'single' | 'bulk'
 const activeTab = ref<TabType>('single')
@@ -15,32 +26,175 @@ const form = ref({
   fullName: '',
   mobile: '',
   email: '',
-  state: ''
+  state: '',
 })
 
-const states = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 
-  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 
-  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 
-  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
-]
+const fileInput = ref<HTMLInputElement | null>(null)
+const locations = ref<{ id?: number; name?: string }[]>([])
+const loading = ref(false)
+const bulkLoading = ref(false)
+const bulkFile = ref<File | null>(null)
+const bulkError = ref('')
+const bulkErrorModal = ref(false)
+const bulkErrorList = ref<{ row: string; message: string }[]>([])
+const bulkErrorTitle = ref('')
 
-const handleAddDriver = () => {
-  if (!form.value.fullName || !form.value.mobile || !form.value.state) {
-    alert("Please fill all mandatory fields.")
+/** Fetch states from API */
+async function fetchLocations() {
+  try {
+    const res: any = await apiGet(END_POINTS.GETSTATES)
+    if (res?.status && Array.isArray(res?.data)) {
+      locations.value = res.data
+    }
+  } catch (err) {
+    console.error('Error fetching locations:', err)
+  }
+}
+
+function validate(): boolean {
+  if (!form.value.fullName?.trim()) {
+    alert('Please enter the driver\'s full name.')
+    return false
+  }
+  if (!form.value.mobile?.trim()) {
+    alert('Please enter the mobile number.')
+    return false
+  }
+  if (form.value.mobile.replace(/\D/g, '').length < 10) {
+    alert('Mobile number must be at least 10 digits.')
+    return false
+  }
+  if (form.value.email?.trim()) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(form.value.email)) {
+      alert('Please enter a valid email address.')
+      return false
+    }
+  }
+  if (!form.value.state) {
+    alert('Please select a state.')
+    return false
+  }
+  return true
+}
+
+async function handleAddDriver() {
+  if (!validate()) return
+  loading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('name', form.value.fullName.trim())
+    fd.append('mobile', form.value.mobile.trim())
+    fd.append('email', form.value.email?.trim() || '')
+    fd.append('states', form.value.state)
+    const res: any = await apiPostForm(END_POINTS.TRANSPORTER_DRIVER_CREATE, fd)
+    if (res?.success) {
+      alert('Driver added successfully!')
+      form.value = { fullName: '', mobile: '', email: '', state: '' }
+      emit('navigate', 'driver-list')
+    } else {
+      alert(res?.message || 'Failed to add driver')
+    }
+  } catch (err: any) {
+    console.error('Add driver error:', err)
+    alert(err?.message || 'Something went wrong')
+  } finally {
+    loading.value = false
+  }
+}
+
+/** Download template - use public URL if available */
+const TEMPLATE_URL = `${BASE_URL.replace(/\/$/, '')}/public/Bulk-Driver-Registration-Format.xlsx`
+
+function handleDownloadTemplate() {
+  window.open(TEMPLATE_URL, '_blank')
+}
+
+function onFileSelected(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const isValid = file.name?.toLowerCase().endsWith('.xlsx') || file.type?.includes('sheet')
+  if (!isValid) {
+    bulkError.value = 'Please select a valid .xlsx Excel file.'
     return
   }
-  console.log('Driver Details:', form.value)
-  alert("Driver Added Successfully!")
-  emit('back')
+  if (file.size > 10 * 1024 * 1024) {
+    bulkError.value = 'File size must be under 10MB.'
+    return
+  }
+  bulkFile.value = file
+  bulkError.value = ''
+  input.value = ''
 }
 
-const handleBulkUpload = () => {
-  // Mock function for bulk import submit
-  alert("Bulk driver data template submitted successfully!")
-  emit('back')
+function clearBulkFile() {
+  bulkFile.value = null
+  bulkError.value = ''
 }
+
+async function handleBulkUpload() {
+  if (!bulkFile.value) {
+    bulkError.value = 'Please select an Excel file to upload.'
+    return
+  }
+  bulkLoading.value = true
+  bulkError.value = ''
+  bulkErrorModal.value = false
+  try {
+    const fd = new FormData()
+    fd.append('file', bulkFile.value)
+    const res: any = await apiPostForm(END_POINTS.DRIVER_IMPORT, fd)
+    if (res?.success) {
+      alert('File uploaded successfully!')
+      bulkFile.value = null
+      emit('navigate', 'driver-list')
+    } else {
+      bulkErrorTitle.value = res?.message || 'Upload failed'
+      const errs = res?.errors
+      if (errs && typeof errs === 'object') {
+        bulkErrorList.value = Object.entries(errs).map(([row, message]) => ({
+          row,
+          message: String(message),
+        }))
+      } else {
+        bulkErrorList.value = []
+      }
+      bulkErrorModal.value = true
+    }
+  } catch (err: any) {
+    console.error('Bulk upload error:', err)
+    bulkError.value = err?.message || 'Upload failed'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
+}
+
+function onDrop(e: DragEvent) {
+  const file = e.dataTransfer?.files?.[0]
+  if (!file) return
+  const isValid = file.name?.toLowerCase().endsWith('.xlsx') || file.type?.includes('sheet')
+  if (!isValid) {
+    bulkError.value = 'Please select a valid .xlsx Excel file.'
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    bulkError.value = 'File size must be under 10MB.'
+    return
+  }
+  bulkFile.value = file
+  bulkError.value = ''
+}
+
+onMounted(() => fetchLocations())
 </script>
 
 <template>
@@ -143,7 +297,7 @@ const handleBulkUpload = () => {
                       <MapPin :size="18" class="c-icon" />
                       <select v-model="form.state" required>
                         <option value="" disabled>Select the state of operation</option>
-                        <option v-for="st in states" :key="st" :value="st">{{ st }}</option>
+                        <option v-for="loc in locations" :key="loc.id ?? loc.name" :value="String(loc.id ?? loc.name ?? '')">{{ loc.name }}</option>
                       </select>
                       <ChevronDown :size="18" class="dropdown-icon" />
                     </div>
@@ -151,8 +305,9 @@ const handleBulkUpload = () => {
                 </div>
 
                 <div class="form-actions">
-                  <button type="submit" class="btn-primary full-width-btn">
-                    <PlusCircle :size="18" /> Register Driver
+                  <button type="submit" class="btn-primary full-width-btn" :disabled="loading">
+                    <Loader2 v-if="loading" class="btn-loader" :size="18" />
+                    <PlusCircle v-else :size="18" /> {{ loading ? 'Registering...' : 'Register Driver' }}
                   </button>
                 </div>
               </form>
@@ -178,7 +333,7 @@ const handleBulkUpload = () => {
                     <h3>Download Standard Template</h3>
                     <p>We require a specific layout for columns and State Codes. Please use our template.</p>
                   </div>
-                  <button class="btn-outline">
+                  <button type="button" class="btn-outline" @click="handleDownloadTemplate">
                     <Download :size="16" /> Download
                   </button>
                 </div>
@@ -193,14 +348,40 @@ const handleBulkUpload = () => {
                   </div>
                 </div>
 
-                <div class="upload-dropzone">
-                  <div class="dz-icon">
-                    <Upload :size="28" color="#1d4ed8" />
-                  </div>
-                  <h3>Click to browse or drag file here</h3>
-                  <p>Maximum file size: 10MB</p>
-                  <button class="btn-browse">Browse Files</button>
+                <div
+                  class="upload-dropzone"
+                  :class="{ 'has-file': bulkFile }"
+                  @click="!bulkFile && fileInput?.click()"
+                  @dragover.prevent
+                  @drop.prevent="onDrop"
+                >
+                  <input
+                    ref="fileInput"
+                    type="file"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    class="hidden-input"
+                    @change="onFileSelected"
+                  />
+                  <template v-if="bulkFile">
+                    <div class="dz-file-info">
+                      <FileSpreadsheet :size="32" color="#059669" />
+                      <div class="dz-file-details">
+                        <strong>{{ bulkFile.name }}</strong>
+                        <span>{{ formatBytes(bulkFile.size) }}</span>
+                      </div>
+                      <button type="button" class="dz-remove" @click.stop="clearBulkFile">×</button>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="dz-icon">
+                      <Upload :size="28" color="#1d4ed8" />
+                    </div>
+                    <h3>Click to browse or drag file here</h3>
+                    <p>Maximum file size: 10MB • .xlsx only</p>
+                    <button type="button" class="btn-browse" @click.stop="fileInput?.click()">Browse Files</button>
+                  </template>
                 </div>
+                <p v-if="bulkError" class="bulk-error">{{ bulkError }}</p>
                 
                 <div class="info-alert">
                   <AlertCircle :size="18" class="text-blue" />
@@ -209,10 +390,30 @@ const handleBulkUpload = () => {
                 
                 <!-- Bulk Actions -->
                 <div class="form-actions mt-4">
-                  <button @click="handleBulkUpload" class="btn-primary full-width-btn">
-                    <Upload :size="18" /> Process Bulk Import
+                  <button @click="handleBulkUpload" class="btn-primary full-width-btn" :disabled="!bulkFile || bulkLoading">
+                    <Loader2 v-if="bulkLoading" class="btn-loader" :size="18" />
+                    <Upload v-else :size="18" /> {{ bulkLoading ? 'Processing...' : 'Process Bulk Import' }}
                   </button>
                 </div>
+
+                <!-- Bulk Error Modal -->
+                <Teleport to="body">
+                  <Transition name="modal-fade">
+                    <div v-if="bulkErrorModal" class="modal-overlay" @click.self="bulkErrorModal = false">
+                      <div class="modal-content">
+                        <h3>File Import Errors</h3>
+                        <p class="modal-subtitle">{{ bulkErrorTitle }}</p>
+                        <div v-if="bulkErrorList.length" class="modal-error-list">
+                          <div v-for="(err, i) in bulkErrorList" :key="i" class="modal-error-item">
+                            <span class="err-row">Row {{ err.row }}</span>
+                            <span class="err-msg">{{ err.message }}</span>
+                          </div>
+                        </div>
+                        <button class="btn-primary mt-3" @click="bulkErrorModal = false">Close</button>
+                      </div>
+                    </div>
+                  </Transition>
+                </Teleport>
 
               </div>
             </div>
@@ -724,6 +925,158 @@ const handleBulkUpload = () => {
   border-color: #1d4ed8;
   color: #ffffff;
 }
+
+.hidden-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.upload-dropzone.has-file {
+  padding: 20px;
+}
+
+.dz-file-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+}
+
+.dz-file-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dz-file-details strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.dz-file-details span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.dz-remove {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 8px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dz-remove:hover {
+  background: #fee2e2;
+}
+
+.bulk-error {
+  margin: 12px 0 0 48px;
+  font-size: 13px;
+  color: #dc2626;
+}
+
+@media (max-width: 640px) {
+  .bulk-error { margin-left: 0; }
+}
+
+.btn-loader {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+}
+
+.modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modal-subtitle {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.modal-error-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.modal-error-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+
+.err-row {
+  font-size: 12px;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.err-msg {
+  font-size: 13px;
+  color: #7f1d1d;
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.mt-3 { margin-top: 16px; }
 
 .info-alert {
   display: flex;

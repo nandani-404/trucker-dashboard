@@ -1,8 +1,106 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ArrowLeft, PlusCircle, CheckCircle2, Briefcase, Truck, IndianRupee, FileText } from 'lucide-vue-next'
+import { fetchSubscriptionDetails } from '../../../services/subscription/subscriptionCheck'
+import { apiGet } from '../../../services/config/api'
+import { END_POINTS } from '../../../services/config/api'
+import { useJobStore } from '../../../stores/job'
+import { cleanupRazorpayOverlay } from '../../../utils/razorpayCleanup'
 
-const emit = defineEmits(['back'])
+const props = defineProps<{
+  user?: { role?: string; id?: unknown } | null
+}>()
+
+const emit = defineEmits(['back', 'subscription-required', 'navigate'])
+const jobStore = useJobStore()
+const locationsList = ref<{ id?: number; name?: string }[]>([])
+const pincodeAreas = ref<{ label: string; value: string }[]>([])
+const pincodeLoading = ref(false)
+const pincodeError = ref('')
+
+onMounted(async () => {
+  cleanupRazorpayOverlay()
+  // Load draft if returning from Job Summary (Edit)
+  const draft = jobStore.addJob
+  if (draft) {
+    form.value = {
+      title: draft.title,
+      location: draft.location,
+      pincode: draft.pincode,
+      area: draft.area,
+      route: draft.route,
+      vehicleType: draft.vehicleType,
+      experience: draft.experience,
+      license: draft.license,
+      skills: [...(draft.skills || [])],
+      salary: draft.salary,
+      hasEsiPf: draft.hasEsiPf,
+      hasFoodAllowance: draft.hasFoodAllowance,
+      foodAllowanceAmount: draft.foodAllowanceAmount,
+      hasTripIncentive: draft.hasTripIncentive,
+      tripIncentiveAmount: draft.tripIncentiveAmount,
+      hasAccommodation: draft.hasAccommodation,
+      hasMileage: draft.hasMileage,
+      mileageValue: draft.mileageValue,
+      hasFastag: draft.hasFastag,
+      fastagAmount: draft.fastagAmount,
+      numberOfDrivers: draft.numberOfDrivers,
+      description: draft.description,
+      truckCondition: draft.truckCondition,
+      deadline: draft.deadline,
+      consent: draft.consent,
+    }
+    if (draft.pincode?.length === 6) {
+      fetchPincodeAreas(draft.pincode)
+    }
+  }
+
+  const r = (props.user?.role || '').toLowerCase()
+  if (r !== 'transporter') return
+  try {
+    const res = await fetchSubscriptionDetails()
+    if (res.showSubscriptionModel) {
+      emit('subscription-required')
+    }
+  } catch {
+    // Allow access on error
+  }
+  try {
+    const locRes = await apiGet<{ status?: boolean; data?: { id?: number; name?: string }[] }>(END_POINTS.GETSTATES)
+    if (locRes && (locRes as { status?: boolean }).status && Array.isArray((locRes as { data?: unknown[] }).data)) {
+      locationsList.value = (locRes as { data: { id?: number; name?: string }[] }).data
+    }
+  } catch {
+    locationsList.value = []
+  }
+})
+
+const fetchPincodeAreas = async (pin: string) => {
+  if (pin.length !== 6) {
+    pincodeAreas.value = []
+    pincodeError.value = ''
+    return
+  }
+  pincodeLoading.value = true
+  pincodeError.value = ''
+  pincodeAreas.value = []
+  try {
+    const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`)
+    const data = await res.json()
+    if (data?.[0]?.Status === 'Success' && data[0].PostOffice) {
+      pincodeAreas.value = data[0].PostOffice.map((po: { Name?: string }) => ({
+        label: po.Name || '',
+        value: po.Name || ''
+      }))
+    } else {
+      pincodeError.value = 'Invalid pincode'
+    }
+  } catch {
+    pincodeError.value = 'Error fetching areas'
+  } finally {
+    pincodeLoading.value = false
+  }
+}
 
 // Form State
 const form = ref({
@@ -58,7 +156,11 @@ const salaryOptions = [
 ]
 const conditionOptions = ['Excellent', 'Good', 'Average', 'Old but running', 'Made Road Ready']
 
-const locations = ['Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad']
+const locations = computed(() =>
+  locationsList.value.length > 0
+    ? locationsList.value.map((l) => l.name || '').filter(Boolean)
+    : ['Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad']
+)
 
 const toggleSkill = (skill: string) => {
   if (form.value.skills.includes(skill)) {
@@ -68,23 +170,84 @@ const toggleSkill = (skill: string) => {
   }
 }
 
-const submitJob = () => {
-  // Check consent before submission 
+const goToSummary = () => {
   if (!form.value.consent) {
-    alert("Please agree to the consent before posting.")
+    alert('Please agree to the consent before posting.')
     return
   }
-  console.log('Submitting Job:', form.value)
-  alert("Job Posted Successfully!")
-  emit('back')
+  if (!form.value.title?.trim()) {
+    alert('Please enter job title.')
+    return
+  }
+  if (!form.value.location) {
+    alert('Please select location.')
+    return
+  }
+  if (!form.value.vehicleType) {
+    alert('Please select vehicle type.')
+    return
+  }
+  if (!form.value.experience) {
+    alert('Please select experience.')
+    return
+  }
+  if (!form.value.license) {
+    alert('Please select license type.')
+    return
+  }
+  if (!form.value.salary) {
+    alert('Please select salary range.')
+    return
+  }
+  if (!form.value.numberOfDrivers || parseInt(form.value.numberOfDrivers) < 1) {
+    alert('Please enter number of drivers.')
+    return
+  }
+  if (!form.value.deadline) {
+    alert('Please select application deadline.')
+    return
+  }
+  if (!form.value.description?.trim()) {
+    alert('Please enter job description.')
+    return
+  }
+  jobStore.setAddJob({
+    title: form.value.title,
+    location: form.value.location,
+    pincode: form.value.pincode,
+    area: form.value.area,
+    route: form.value.route,
+    vehicleType: form.value.vehicleType,
+    experience: form.value.experience,
+    license: form.value.license,
+    skills: [...form.value.skills],
+    salary: form.value.salary,
+    hasEsiPf: form.value.hasEsiPf,
+    hasFoodAllowance: form.value.hasFoodAllowance,
+    foodAllowanceAmount: form.value.foodAllowanceAmount,
+    hasTripIncentive: form.value.hasTripIncentive,
+    tripIncentiveAmount: form.value.tripIncentiveAmount,
+    hasAccommodation: form.value.hasAccommodation,
+    hasMileage: form.value.hasMileage,
+    mileageValue: form.value.mileageValue,
+    hasFastag: form.value.hasFastag,
+    fastagAmount: form.value.fastagAmount,
+    numberOfDrivers: form.value.numberOfDrivers,
+    description: form.value.description,
+    truckCondition: form.value.truckCondition,
+    deadline: form.value.deadline,
+    consent: form.value.consent,
+  })
+  emit('navigate', 'job-summary')
 }
+
 </script>
 
 <template>
   <div class="addjob-wrapper">
     <!-- Header -->
     <div class="dash-header-area">
-      <button class="back-btn" @click="emit('back')" title="Back to Home">
+      <button class="back-btn" @click="emit('back')" title="Back">
         <ArrowLeft :size="18" />
         <span>Back</span>
       </button>
@@ -102,7 +265,7 @@ const submitJob = () => {
 
     <!-- Form Container -->
     <div class="form-container">
-      <form @submit.prevent="submitJob" class="job-form">
+      <form @submit.prevent="goToSummary" class="job-form">
         
         <!-- Job Basics Card -->
         <div class="form-section-card">
@@ -126,14 +289,28 @@ const submitJob = () => {
             </div>
 
             <div class="input-group">
-              <label>Pincode <span class="req">*</span></label>
-              <input type="text" v-model="form.pincode" placeholder="Enter Pincode" maxlength="6" required />
+              <label>Pincode</label>
+              <input
+                type="text"
+                v-model="form.pincode"
+                placeholder="Enter 6 digit pincode"
+                maxlength="6"
+                @input="(e) => { form.pincode = (e.target as HTMLInputElement).value.replace(/\D/g, '').slice(0,6); if (form.pincode.length === 6) fetchPincodeAreas(form.pincode); }"
+              />
+              <span v-if="pincodeLoading" class="hint">Fetching areas...</span>
+              <span v-if="pincodeError" class="err">{{ pincodeError }}</span>
             </div>
 
-            <!-- Select Area (conditionally shown if Pincode is entered) -->
-            <div class="input-group slide-in" v-if="form.pincode.length > 0">
-              <label>Select Area <span class="req">*</span></label>
-              <input type="text" v-model="form.area" placeholder="Enter Area / Neighborhood" required />
+            <div class="input-group slide-in" v-if="pincodeAreas.length > 0">
+              <label>Select Area</label>
+              <select v-model="form.area">
+                <option value="">Select Area</option>
+                <option v-for="a in pincodeAreas" :key="a.value" :value="a.value">{{ a.label }}</option>
+              </select>
+            </div>
+            <div class="input-group slide-in" v-else-if="form.pincode.length === 6">
+              <label>Area</label>
+              <input type="text" v-model="form.area" placeholder="Enter Area / Neighborhood" />
             </div>
 
             <div class="input-group">
@@ -376,7 +553,7 @@ const submitJob = () => {
         <div class="submit-action">
           <button type="submit" class="submit-btn">
             <CheckCircle2 :size="18" style="margin-right:8px;" />
-            Post Job
+            Review Job
           </button>
         </div>
 
@@ -467,6 +644,56 @@ const submitJob = () => {
   font-size: 14px;
   color: #64748b;
 }
+
+/* Success Block */
+.success-block {
+  text-align: center;
+  padding: 60px 24px;
+}
+.success-block h2 { margin: 16px 0 8px; font-size: 22px; color: #10b981; }
+.success-block p { color: #64748b; font-size: 14px; }
+
+/* Summary Card */
+.summary-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px;
+  border: 1px solid #e2e8f0;
+}
+.summary-card h3 { margin: 0 0 24px; font-size: 20px; }
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+  margin-bottom: 28px;
+}
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.summary-item strong { font-size: 12px; color: #64748b; text-transform: uppercase; }
+.summary-item span { font-size: 15px; font-weight: 600; }
+.summary-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+.btn-secondary {
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-secondary:hover { background: #f8fafc; }
+
+/* Pincode hint/error */
+.input-group .hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+.input-group .err { font-size: 12px; color: #ef4444; margin-top: 4px; }
 
 /* Modern Form Container */
 .form-container {

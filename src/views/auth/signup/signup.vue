@@ -6,7 +6,7 @@ import {
   apiPostForm,
   setAuthToken,
   setUser,
-} from '../../../services/api'
+} from '../../../services/config/api'
 
 const props = defineProps<{
   preSelectedRole?: string

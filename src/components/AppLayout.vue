@@ -13,8 +13,8 @@ import {
   Briefcase,
   FileCheck,
 } from 'lucide-vue-next'
-import { apiGet } from '../services/api'
-import { END_POINTS, BASE_URL } from '../services/api'
+import { apiGet } from '../services/config/api'
+import { END_POINTS, BASE_URL } from '../services/config/api'
 import logoImg from '../assets/logo/logotrick.png'
 
 const props = defineProps<{
@@ -43,9 +43,23 @@ const displayTmId = computed(() =>
 )
 
 const profileCompletion = computed(() => {
-  const p = profileData.value?.profile_completion ?? profileData.value?.profile_required_fields_status
-  if (typeof p === 'number') return p
+  const p =
+    profileData.value?.profile_completion ??
+    profileData.value?.profile_completion_percentage ??
+    profileData.value?.profile_required_fields_status ??
+    (props.user as Record<string, unknown>)?.profile_completion ??
+    (props.user as Record<string, unknown>)?.profile_completion_percentage
+  if (typeof p === 'number') return Math.round(p)
+  if (typeof p === 'string') {
+    const n = parseInt(p, 10)
+    if (!Number.isNaN(n)) return Math.min(100, Math.max(0, n))
+  }
   if (p === true) return 100
+  if (p && typeof p === 'object' && 'completed' in p && 'total' in p) {
+    const completed = Number((p as { completed?: number }).completed) || 0
+    const total = Number((p as { total?: number }).total) || 1
+    return total > 0 ? Math.round((completed / total) * 100) : 0
+  }
   return 0
 })
 
@@ -90,16 +104,19 @@ watch(() => props.currentView, () => {
   if (mainContent.value) mainContent.value.scrollTop = 0
 })
 
-onMounted(async () => {
+const fetchProfile = async () => {
   try {
     const res = await apiGet<{ status?: boolean; data?: Record<string, unknown> }>(END_POINTS.GET_PROFILE)
     if (res?.status && res?.data) {
-      profileData.value = res.data
+      const d = res.data as Record<string, unknown>
+      profileData.value = (d.data as Record<string, unknown>) || d
     }
   } catch {
     // Use props.user as fallback
   }
-})
+}
+
+onMounted(fetchProfile)
 </script>
 
 <template>
@@ -131,6 +148,10 @@ onMounted(async () => {
       </nav>
 
       <div class="sidebar-footer">
+        <button class="logout-btn" @click="emit('logout')">
+          <LogOut class="logout-icon" :size="20" />
+          <span>Logout</span>
+        </button>
         <div class="help-card">
           <HelpCircle class="help-icon" :size="24" />
           <h4>Need Help?</h4>
@@ -327,6 +348,33 @@ onMounted(async () => {
 
 .sidebar-footer {
   padding: 20px;
+  flex-shrink: 0;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.logout-btn:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.logout-icon {
   flex-shrink: 0;
 }
 
