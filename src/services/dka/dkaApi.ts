@@ -86,11 +86,18 @@ function getDkaHeaders(userId: string): Record<string, string> {
   return headers
 }
 
-/** In dev, use Vite proxy to avoid CORS */
+/** Use proxy path in dev (Vite proxy), direct URL in production (Apache) */
 function getDkaUrl(fullUrl: string): string {
-  if (import.meta.env.DEV) {
-    return fullUrl.replace('https://driverkiawaz.truckmitr.com', '').replace(/^\/api/, '/api/dka')
+  const isDev = import.meta.env.DEV
+  const base = 'https://driverkiawaz.truckmitr.com'
+
+  // In development, rewrite to /api/dka/* so Vite proxy handles CORS
+  if (isDev && fullUrl.startsWith(base)) {
+    const path = fullUrl.slice(base.length).replace(/^\//, '')
+    return `/api/dka/${path.replace(/^api\//, '')}`
   }
+
+  // In production (Apache), use the direct URL — no proxy available
   return fullUrl
 }
 
@@ -219,14 +226,17 @@ export async function deletePost(id: string): Promise<void> {
   await dkaFetch(getDkaUrl(END_POINTS.DKA_DELETE_POST(id)), { method: 'DELETE' })
 }
 
-/** Build video URL */
+/** Build video URL (uses proxy for stream to avoid CORS) */
 export function getVideoUrl(item: { video_file?: string; media_url?: string }): string {
   if (item.video_file) {
-    return `${END_POINTS.DKA_STREAM}/${item.video_file}`
+    return getDkaUrl(`${END_POINTS.DKA_STREAM}/${item.video_file}`)
   }
   const raw = item.media_url || ''
   if (raw.startsWith('http')) return raw
   const clean = raw.startsWith('/') ? raw.slice(1) : raw
+  if (clean && clean.startsWith('api/')) {
+    return getDkaUrl(`${DRIVER_KI_AWAZ_BASE}${clean}`)
+  }
   return clean ? `${DRIVER_KI_AWAZ_BASE}${clean}` : ''
 }
 
@@ -235,6 +245,9 @@ export function getMediaUrl(raw?: string): string {
   if (!raw) return ''
   if (raw.startsWith('http')) return raw
   const clean = raw.startsWith('/') ? raw.slice(1) : raw
+  if (clean && clean.startsWith('api/')) {
+    return getDkaUrl(`${DRIVER_KI_AWAZ_BASE}${clean}`)
+  }
   return clean ? `${DRIVER_KI_AWAZ_BASE}${clean}` : ''
 }
 

@@ -71,6 +71,7 @@ const completion = computed(() => {
 // Tier logic - mirrors app's getTierFromPaymentType
 const tiers: Record<string, { color: string; text: string; bg: string }> = {
   'JOB READY': { color: '#0056b3', text: 'Job Ready', bg: '#0056b3' },
+  'TRANSPORTER': { color: '#1e40af', text: 'Transporter', bg: '#1e40af' },
   'VERIFIED': { color: '#28a745', text: 'Verified', bg: '#28a745' },
   'TRUSTED': { color: '#ffc107', text: 'Trusted', bg: '#ffc107' },
   'TRANSPORTER PRO': { color: '#6f42c1', text: 'Transporter Pro', bg: '#6f42c1' },
@@ -88,7 +89,8 @@ function getTierFromSubscription(): string {
   if ([49, 49.0, 1, 1.0].includes(amount)) return 'LEGACY'
   if (amount >= 499) return role === 'transporter' ? 'TRANSPORTER PRO' : 'TRUSTED'
   if (amount >= 199) return 'VERIFIED'
-  return 'JOB READY'
+  // Role-aware fallback: transporters get "Transporter", drivers get "Job Ready"
+  return role === 'transporter' ? 'TRANSPORTER' : 'JOB READY'
 }
 
 const userTier = computed(() => getTierFromSubscription())

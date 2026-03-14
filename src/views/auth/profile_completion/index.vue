@@ -9,7 +9,7 @@ import {
 
 // Truck images from assets (same as RN app)
 import openCargoImg from '../../../assets/images/trucks/open_cargo.png'
-import closeCargoImg from '../../../assets/images/trucks/close_cargo.png'
+
 import tripperImg from '../../../assets/images/trucks/tripper.png'
 import trailerImg from '../../../assets/images/trucks/tailer.png'
 import tankerImg from '../../../assets/images/trucks/tainkers.png'
@@ -20,14 +20,13 @@ import pickupImg from '../../../assets/images/trucks/pickup_truck.png'
 
 const TRUCK_VEHICLE_TYPES = [
   { id: 3, name: 'Cargo Truck (Open)', image: openCargoImg },
-  { id: 4, name: 'Cargo Truck (Closed)', image: closeCargoImg },
+  { id: 1, name: 'Container Trucks', image: containerImg },
   { id: 11, name: 'Tipper Trucks', image: tripperImg },
   { id: 22, name: 'Trailer Trucks', image: trailerImg },
   { id: 10, name: 'Tankers', image: tankerImg },
   { id: 9, name: 'Car Carriers', image: carCarrierImg },
-  { id: 1, name: 'Container Trucks', image: containerImg },
-  { id: 8, name: 'Reefer Trucks', image: reeferImg },
   { id: 4, name: 'Pickup / LCV', image: pickupImg },
+  { id: 8, name: 'Reefer Trucks', image: reeferImg },
 ]
 
 const props = defineProps<{
@@ -644,44 +643,76 @@ const handleBack = () => {
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 .profile-completion {
   height: 100vh;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f0f2f5;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+  background-image: url('../../../assets/images/login-bg/bgprofile.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  font-family: 'Inter', sans-serif;
+  color: #1e293b;
+}
+
+.profile-completion::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0.9) 0%, rgba(219, 234, 254, 0.9) 55%, transparent 55.1%, transparent 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  -webkit-mask-image: linear-gradient(105deg, black 0%, black 55%, transparent 55.1%, transparent 100%);
+  mask-image: linear-gradient(105deg, black 0%, black 55%, transparent 55.1%, transparent 100%);
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* Header */
 .header {
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  position: relative;
 }
 
 .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  max-width: 720px;
-  margin: 0 auto;
+  padding: 8px 24px;
+  max-width: 100%;
 }
 
 .back-btn {
-  min-width: 60px;
-  background: none;
-  border: none;
-  font-size: 15px;
-  color: #3D5EE1;
+  min-width: 80px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
   cursor: pointer;
-  padding: 8px 0;
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
 .back-btn:hover {
-  text-decoration: underline;
+  background: #ffffff;
+  color: #1e293b;
+  transform: translateY(-1px);
 }
 
 .header-center {
@@ -690,88 +721,99 @@ const handleBack = () => {
 
 .header-center h2 {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 800;
   margin: 0 0 2px 0;
-  color: #1a1a2e;
+  color: #1e293b;
+  letter-spacing: -0.5px;
 }
 
 .header-center p {
   font-size: 13px;
-  color: #6b7280;
+  font-weight: 500;
+  color: #64748b;
   margin: 0;
 }
 
 .progress-bar {
   height: 4px;
-  background: #e5e7eb;
+  background: rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  position: relative;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3D5EE1, #5b7cf5);
-  transition: width 0.3s ease;
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 4px 4px 0;
 }
 
 /* Content */
 .content {
   flex: 1;
   min-height: 0;
-  padding: 32px 24px 120px;
+  padding: 40px 6vw 140px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  z-index: 10;
+  position: relative;
 }
 
 .content-inner {
-  max-width: 720px;
-  margin: 0 auto;
-  background: #fff;
-  border-radius: 16px;
-  padding: 32px 28px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  max-width: 480px;
+  margin: 0;
+  background: transparent;
+  border: none;
+  padding: 0 0 40px 0;
+  box-shadow: none;
 }
 
 .page h3 {
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0 0 24px 0;
-  color: #1a1a2e;
-  letter-spacing: -0.02em;
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 32px 0;
+  color: #1e293b;
+  letter-spacing: -0.5px;
 }
 
 /* Form fields */
 .field {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .field label {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
+  color: #334155;
+  margin-bottom: 10px;
 }
 
 .field input,
 .field select {
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  font-size: 15px;
-  background: #fff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.field input:hover,
-.field select:hover {
-  border-color: #9ca3af;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  color: #1e293b;
+  outline: none;
+  transition: all 0.2s ease;
 }
 
 .field input:focus,
 .field select:focus {
-  outline: none;
-  border-color: #3D5EE1;
-  box-shadow: 0 0 0 3px rgba(61, 94, 225, 0.15);
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+.field input::placeholder,
+.field select::placeholder {
+  color: #94a3b8;
 }
 
 .radio-row {
@@ -784,122 +826,136 @@ const handleBack = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #334155;
   cursor: pointer;
-  padding: 12px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #fafafa;
-  transition: all 0.2s;
+  padding: 16px 20px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s ease;
 }
 
 .radio:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: #ffffff;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
 }
 
 .radio:has(input:checked) {
-  border-color: #3D5EE1;
-  background: #f0f5ff;
+  border-color: #3b82f6;
+  background: rgba(239, 246, 255, 0.8);
+  color: #1e3a8a;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.05);
 }
 
 .chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .chip {
-  padding: 10px 18px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #fff;
-  font-size: 14px;
+  padding: 12px 20px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  font-weight: 600;
+  color: #475569;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .chip:hover {
-  border-color: #3D5EE1;
-  background: #f8faff;
+  border-color: #cbd5e1;
+  background: #ffffff;
+  transform: translateY(-1px);
 }
 
 .chip.selected {
-  border-color: #3D5EE1;
-  background: #f0f5ff;
-  color: #3D5EE1;
-  font-weight: 600;
+  border-color: #3b82f6;
+  background: rgba(239, 246, 255, 0.8);
+  color: #1e3a8a;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
 }
 
 .field-hint {
-  font-size: 13px;
-  color: #6b7280;
-  margin: -4px 0 12px 0;
+  font-size: 14px;
+  color: #64748b;
+  margin: -6px 0 16px 0;
 }
 
 /* Vehicle grid */
 .vehicle-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px;
 }
 
 .vehicle-tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 12px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  background: #fff;
+  padding: 24px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
 }
 
 .vehicle-tile:hover {
-  border-color: #3D5EE1;
-  background: #f8faff;
-  transform: translateY(-1px);
+  border-color: #cbd5e1;
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
 }
 
 .vehicle-tile.selected {
-  border-color: #3D5EE1;
-  background: #f0f5ff;
+  border-color: #3b82f6;
+  background: rgba(239, 246, 255, 0.8);
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2);
+  transform: translateY(-2px);
 }
 
 .vehicle-image {
   width: 100%;
-  height: 72px;
+  height: 80px;
   object-fit: contain;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .vehicle-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: #475569;
   text-align: center;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .vehicle-tile.selected .vehicle-label {
-  color: #3D5EE1;
+  color: #1e3a8a;
 }
 
 .vehicle-check {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 22px;
-  height: 22px;
+  top: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: #3D5EE1;
+  background: #3b82f6;
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
 /* File upload */
@@ -914,7 +970,7 @@ const handleBack = () => {
   height: 120px;
   border-radius: 12px;
   overflow: hidden;
-  border: 2px solid #e5e7eb;
+  border: 1.5px solid #e2e8f0;
   flex-shrink: 0;
 }
 
@@ -926,17 +982,17 @@ const handleBack = () => {
 
 .file-upload {
   position: relative;
-  border: 2px dashed #d1d5db;
+  border: 1.5px dashed #cbd5e1;
   border-radius: 12px;
   padding: 24px;
   text-align: center;
-  background: #fafafa;
+  background: rgba(248, 250, 252, 0.6);
   transition: all 0.2s;
 }
 
 .file-upload:hover {
-  border-color: #3D5EE1;
-  background: #f8faff;
+  border-color: #3b82f6;
+  background: #ffffff;
 }
 
 .file-upload input {
@@ -948,7 +1004,7 @@ const handleBack = () => {
 
 .file-upload span {
   font-size: 14px;
-  color: #6b7280;
+  color: #64748b;
 }
 
 /* Footer */
@@ -956,35 +1012,51 @@ const handleBack = () => {
   position: fixed;
   bottom: 0;
   left: 0;
-  right: 0;
-  padding: 20px 24px 28px;
-  background: #fff;
-  border-top: 1px solid #e5e7eb;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  width: 55%;
+  padding: 32px 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
 }
 
 .footer-inner {
-  max-width: 720px;
+  width: 100%;
+  max-width: 380px;
   margin: 0 auto;
+  pointer-events: auto;
+  padding: 0 24px;
 }
 
 .next-btn {
   width: 100%;
-  height: 52px;
+  padding: 18px 24px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
   border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #3D5EE1, #5b7cf5);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(61, 94, 225, 0.35);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5px;
 }
 
 .next-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(61, 94, 225, 0.4);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+  transform: translateY(-2px);
+}
+
+.next-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .next-btn:disabled {
@@ -994,9 +1066,9 @@ const handleBack = () => {
 
 .spinner {
   display: inline-block;
-  width: 22px;
-  height: 22px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;

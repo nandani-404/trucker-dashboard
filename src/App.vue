@@ -75,13 +75,15 @@ const showSubscriptionModal = computed({
   set: (v) => appStore.setShowSubscriptionModal(v),
 })
 
-// ── History API: push a state entry when navigating (domain/transporter/home, domain/transporter/dashboard, etc.)
+const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '') || ''
+
+// ── History API: push a state entry when navigating (domain/login/transporter/home, etc.)
 function getUrlForView(view: string): string {
   const roleNamespace = userStore.user?.role
     ? `/${String(userStore.user.role).toLowerCase().replace(/\s+/g, '-')}`
     : ''
-  const basePath = roleNamespace || ''
-  return view === 'home' ? (basePath ? `${basePath}/home` : '/') : `${basePath}/${view}`
+  const path = view === 'home' ? (roleNamespace ? `${roleNamespace}/home` : '/') : `${roleNamespace}/${view}`
+  return BASE_PATH ? `${BASE_PATH}${path}` : path
 }
 
 const navigateTo = (view: string, replace = false) => {
@@ -96,14 +98,16 @@ const navigateTo = (view: string, replace = false) => {
   }
 }
 
-const isAuthPath = (path: string) =>
-  !path || path === 'login' || path === 'index.html' || path === 'signup' || path === 'module-selection'
+const isAuthPath = (path: string) => {
+  const p = path.replace(/^login\/?/, '') // strip base when app is in /login/
+  return !p || p === 'login' || p === 'index.html' || p === 'signup' || p === 'module-selection'
+}
 
 const handlePopState = (event: PopStateEvent) => {
   if (!userStore.isAuthenticated) {
     const pathPart = window.location.pathname.replace(/^\/|\/$/g, '')
     if (!isAuthPath(pathPart)) {
-      history.replaceState({}, '', '/login')
+      history.replaceState({}, '', BASE_PATH ? `${BASE_PATH}/` : '/login')
       appStore.setAuthScreen('login')
       return
     }
@@ -123,7 +127,11 @@ const handlePopState = (event: PopStateEvent) => {
 
 onMounted(() => {
   let initialView = 'home'
-  const path = window.location.pathname.replace(/^\/|\/$/g, '')
+  let path = window.location.pathname.replace(/^\/|\/$/g, '')
+  // Strip base path when app is in /login/
+  if (BASE_PATH && path.startsWith(BASE_PATH.replace(/^\//, ''))) {
+    path = path.slice(BASE_PATH.length).replace(/^\//, '')
+  }
 
   if (path && path !== 'login' && path !== 'index.html') {
     const parts = path.split('/')
@@ -133,7 +141,7 @@ onMounted(() => {
   if (!isLoggedIn.value && !isAuthPath(path)) {
     // Unauthenticated user tried to access protected route - redirect to login
     appStore.setAuthScreen('login')
-    window.location.replace('/login')
+    window.location.replace(BASE_PATH ? `${BASE_PATH}/` : '/login')
     return
   } else if (isLoggedIn.value) {
     // Logged in: ensure URL is domain/role/home or domain/role/view
@@ -142,8 +150,8 @@ onMounted(() => {
       : ''
     const basePath = roleNamespace || ''
     const url = initialView === 'home'
-      ? (basePath ? `${basePath}/home` : '/')
-      : `${basePath}/${initialView}`
+      ? (basePath ? `${BASE_PATH}${basePath}/home` : `${BASE_PATH}/`)
+      : `${BASE_PATH}${basePath}/${initialView}`
     history.replaceState({ view: initialView }, '', url)
   } else {
     history.replaceState({ view: initialView }, '', window.location.href)
@@ -205,7 +213,7 @@ const handleLogout = async () => {
   authStore.logout()
   appStore.resetOnLogout()
   await clearAllBrowserCaches()
-  history.replaceState({}, '', '/')
+  history.replaceState({}, '', BASE_PATH ? `${BASE_PATH}/` : '/')
 }
 
 const TRANSPORTER_499_VIEWS = ['rc-check', 'challan-check', 'view-applications']
@@ -290,15 +298,8 @@ const handleBack = () => {
   if (appStore.viewHistory.length > 1) {
     const prev = appStore.viewHistory[appStore.viewHistory.length - 2] as string
     appStore.goBack(prev)
-    const roleNamespace = userStore.user?.role
-      ? `/${String(userStore.user.role).toLowerCase().replace(/\s+/g, '-')}`
-      : ''
-    const basePath = roleNamespace || ''
-    if (prev !== 'home') {
-      history.pushState({ view: prev }, '', `${basePath}/${prev}`)
-    } else {
-      history.pushState({ view: 'home' }, '', basePath ? `${basePath}/home` : '/')
-    }
+    const url = getUrlForView(prev === 'home' ? 'home' : prev)
+    history.pushState({ view: prev }, '', url)
   } else {
     navigateTo('home')
   }

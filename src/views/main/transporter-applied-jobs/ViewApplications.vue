@@ -117,7 +117,6 @@ const totalCount = ref(0)
 const acceptRejectLoading = ref(false)
 const acceptId = ref<number | null>(null)
 const rejectId = ref<number | null>(null)
-const callLoading = ref(false)
 
 const selectedDriver = ref<ApplicantDisplay | null>(null)
 
@@ -320,27 +319,6 @@ async function rejectApplicant(app: ApplicantDisplay) {
     rejectId.value = null
     acceptRejectLoading.value = false
   }
-}
-
-/** Call driver - log then open tel: */
-async function callDriver(app: ApplicantDisplay) {
-  const item = app?._raw
-  const d = item?.driver_details
-  const mobile = d?.driver_mobile
-  if (!mobile) return
-  callLoading.value = true
-  try {
-    const fd = new FormData()
-    fd.append('id', String(d?.driver_id ?? ''))
-    fd.append('job_id', String(item?.job_id ?? ''))
-    await apiPostForm(END_POINTS.CALL_TRANSPORTER, fd)
-  } catch {
-    /* continue to open tel */
-  } finally {
-    callLoading.value = false
-  }
-  window.location.href = `tel:${mobile}`
-  closeDriverDetails()
 }
 
 const toggleJob = (index: number) => {
@@ -803,14 +781,6 @@ onMounted(() => fetchJobs(1))
               </div>
             </div>
           </div>
-
-          <!-- Action Button -->
-          <div class="dm-footer">
-            <button class="btn-call-driver" :disabled="callLoading" @click="callDriver(selectedDriver)">
-              <Loader2 v-if="callLoading" class="btn-loader" :size="18" />
-              <PhoneCall v-else :size="18" /> {{ callLoading ? 'Calling...' : 'Call Driver' }}
-            </button>
-          </div>
         </div>
       </div>
     </Transition>
@@ -1266,11 +1236,4 @@ onMounted(() => fetchJobs(1))
 .dm-row span { color: #64748b; font-weight: 500; flex: 1; padding-right: 16px; }
 .dm-row strong { color: #0f172a; font-weight: 700; text-align: right; word-break: break-word; max-width: 60%; }
 
-.dm-footer {
-  padding: 20px 24px 24px; background: #ffffff; border-top: 1px solid #e2e8f0;
-}
-.btn-call-driver {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border: none; border-radius: 14px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; font-size: 16px; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.25s; box-shadow: 0 6px 16px -4px rgba(37,99,235,0.4);
-}
-.btn-call-driver:hover { background: linear-gradient(135deg, #1d4ed8, #1e40af); transform: translateY(-2px); box-shadow: 0 8px 20px -4px rgba(37,99,235,0.5); }
 </style>

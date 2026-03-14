@@ -16,6 +16,7 @@ import {
   Briefcase,
   FileCheck,
   Video,
+  Plus,
 } from 'lucide-vue-next'
 import { BASE_URL } from '../services/config/api'
 import { getProfileFull, getSubscriptionDetails } from '../services/profile/profileApi'
@@ -232,6 +233,20 @@ onMounted(fetchProfile)
 
         <!-- Right Actions -->
         <div class="header-actions">
+          <!-- Post Job CTA (transporters only) -->
+          <button
+            v-if="!isDriver"
+            class="post-job-btn"
+            :class="{ 'btn-active': currentView === 'add-job' }"
+            title="Post a New Job"
+            aria-label="Post Job"
+            @click="emit('navigate', 'add-job')"
+          >
+            <span class="post-job-pulse"></span>
+            <Plus :size="18" class="post-job-icon" />
+            <span class="post-job-text">Post Job</span>
+          </button>
+
           <button
             class="action-btn dashboard-btn"
             :class="{ 'btn-active': currentView === 'dashboard' }"
@@ -835,5 +850,78 @@ onMounted(fetchProfile)
     height: 36px;
     margin-right: 8px;
   }
+  .post-job-btn .post-job-text { display: none; }
+  .post-job-btn { padding: 10px; border-radius: 12px; }
+}
+
+/* ─── Post Job CTA ─── */
+.post-job-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #dc2626 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+  overflow: hidden;
+  z-index: 1;
+  animation: postJobAttention 3s ease-in-out infinite;
+}
+
+@keyframes postJobAttention {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4); }
+  50% { transform: scale(1.03); box-shadow: 0 6px 25px rgba(249, 115, 22, 0.55); }
+}
+
+.post-job-btn:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #dc2626 50%, #b91c1c 100%);
+  transform: scale(1.05) !important;
+  box-shadow: 0 8px 30px rgba(234, 88, 12, 0.5) !important;
+}
+
+.post-job-btn:active {
+  transform: scale(0.97) !important;
+}
+
+.post-job-btn.btn-active {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  animation: none;
+}
+
+.post-job-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 60%);
+  animation: pulseShine 2.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulseShine {
+  0%, 100% { opacity: 0; transform: translateX(-100%); }
+  50% { opacity: 1; transform: translateX(100%); }
+}
+
+.post-job-icon {
+  flex-shrink: 0;
+  stroke-width: 2.5px;
+}
+
+.post-job-text {
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 768px) {
+  .post-job-btn .post-job-text { display: none; }
+  .post-job-btn { padding: 10px 12px; border-radius: 14px; }
 }
 </style>

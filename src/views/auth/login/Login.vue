@@ -177,6 +177,7 @@ function closeTransporterPopup() {
 
 <template>
   <div class="login-page">
+    <img src="../../../assets/logo/logotrick.png" alt="TruckMitr Logo" class="top-logo" />
     <main class="login-card">
       <h1 class="title">Welcome to TruckMitr</h1>
       <p class="subtitle">Enter your mobile number to continue</p>
@@ -266,34 +267,71 @@ function closeTransporterPopup() {
   min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: #f8fafc;
-  padding: 24px;
+  justify-content: flex-end;
+  background-image: url('../../../assets/images/login-bg/9169170290.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 24px 12vw;
   font-family: 'Inter', sans-serif;
+  position: relative;
+}
+
+.top-logo {
+  position: absolute;
+  top: 24px;
+  right: 3vw;
+  height: 85px;
+  object-fit: contain;
+  z-index: 10;
+}
+
+@media (max-width: 1024px) {
+  .login-page {
+    padding: 24px 8vw;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-page {
+    justify-content: center;
+    padding: 24px;
+    background-position: right;
+  }
+  .top-logo {
+    top: 24px;
+    right: 24px;
+    height: 60px;
+  }
 }
 
 .login-card {
   width: 100%;
-  max-width: 400px;
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 40px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  max-width: 440px;
+  padding: 48px;
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
 
 .title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e40af;
-  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 12px 0;
   text-align: center;
+  letter-spacing: -0.5px;
 }
 
 .subtitle {
-  font-size: 15px;
-  color: #64748b;
-  margin: 0 0 28px 0;
+  font-size: 16px;
+  color: #475569;
+  margin: 0 0 36px 0;
   text-align: center;
+  line-height: 1.5;
 }
 
 .form,
@@ -318,54 +356,68 @@ function closeTransporterPopup() {
 .input-with-prefix {
   display: flex;
   align-items: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.8);
   overflow: hidden;
+  transition: all 0.2s ease;
 }
 
 .input-with-prefix:focus-within {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
 }
 
 .prefix {
   padding: 0 16px;
-  font-size: 15px;
-  color: #64748b;
-  font-weight: 500;
+  font-size: 16px;
+  color: #475569;
+  font-weight: 600;
+  border-right: 1px solid #e2e8f0;
 }
 
 .input-with-prefix input {
   flex: 1;
   border: none;
   background: transparent;
-  padding: 14px 16px;
+  padding: 16px;
   font-size: 16px;
+  font-weight: 500;
   outline: none;
+  color: #1e293b;
+}
+
+.input-with-prefix input::placeholder {
+  color: #94a3b8;
 }
 
 .otp-boxes {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
 }
 
 .otp-boxes input {
-  width: 52px;
-  height: 56px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
-  font-size: 20px;
-  font-weight: 600;
+  width: 56px;
+  height: 64px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.8);
+  font-size: 24px;
+  font-weight: 700;
   text-align: center;
   outline: none;
+  transition: all 0.2s ease;
+  color: #1e293b;
 }
 
 .otp-boxes input:focus {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
 }
 
 .otp-boxes.error input {
@@ -389,19 +441,30 @@ function closeTransporterPopup() {
 
 .submit-btn {
   width: 100%;
-  padding: 14px 24px;
-  background: #3b82f6;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #ffffff;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5px;
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+  transform: translateY(-2px);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .submit-btn:disabled {

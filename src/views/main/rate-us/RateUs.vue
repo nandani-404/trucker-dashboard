@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ChevronLeft, Star, Send, Heart, Sparkles, MessageSquare } from 'lucide-vue-next'
+import { END_POINTS, apiPostForm } from '../../../services/config/api'
 
 const emit = defineEmits(['back'])
 
 const rating = ref(0)
 const feedback = ref('')
 const selectedTags = ref<string[]>([])
+const loading = ref(false)
+const submitted = ref(false)
+const errorMsg = ref('')
 
 const tags = [
   'Good performance',
@@ -26,13 +30,39 @@ const toggleTag = (tag: string) => {
   }
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (rating.value === 0) {
-    alert('Please select a rating before sending.')
+    errorMsg.value = 'Please select a rating before sending.'
     return
   }
-  alert('Thank you for your feedback! We appreciate your support.')
-  emit('back')
+
+  loading.value = true
+  errorMsg.value = ''
+
+  try {
+    const formData = new FormData()
+    formData.append('rating', String(rating.value))
+    formData.append('feedback', feedback.value.trim())
+    formData.append('tags', selectedTags.value.join(','))
+
+    const res = await apiPostForm<{ status?: boolean; success?: boolean; message?: string }>(
+      END_POINTS.REATE_US,
+      formData
+    )
+
+    if (res?.status || res?.success) {
+      submitted.value = true
+      setTimeout(() => {
+        emit('back')
+      }, 2000)
+    } else {
+      errorMsg.value = res?.message || 'Failed to submit feedback. Please try again.'
+    }
+  } catch (err: unknown) {
+    errorMsg.value = (err as Error).message || 'Something went wrong. Please try again.'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -53,7 +83,15 @@ const handleSubmit = () => {
       </header>
 
       <main class="rate-body">
-        <div class="rate-grid">
+        <!-- Success State -->
+        <div v-if="submitted" class="success-state">
+          <div class="success-icon">✓</div>
+          <h2>Thank You!</h2>
+          <p>Your feedback has been submitted successfully. We appreciate your support!</p>
+        </div>
+
+        <!-- Form -->
+        <div v-else class="rate-grid">
           <!-- Left: Selection -->
           <div class="rate-card main-card">
             <div class="card-section">
@@ -69,7 +107,7 @@ const handleSubmit = () => {
                     :size="48"
                     class="star-icon"
                     :class="{ 'active': rating >= i }"
-                    @click="rating = i"
+                    @click="rating = i; errorMsg = ''"
                     :fill="rating >= i ? '#ffc107' : 'none'"
                   />
                 </div>
@@ -108,11 +146,15 @@ const handleSubmit = () => {
             <textarea 
               v-model="feedback" 
               placeholder="Write your feedback here... We'd love to hear your suggestions or any issues you faced."
+              :disabled="loading"
             ></textarea>
+
+            <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
             
-            <button class="send-btn" @click="handleSubmit">
-              <Send :size="18" />
-              <span>Send My Feedback</span>
+            <button class="send-btn" :disabled="loading" @click="handleSubmit">
+              <span v-if="loading" class="btn-spinner"></span>
+              <Send v-else :size="18" />
+              <span>{{ loading ? 'Sending...' : 'Send My Feedback' }}</span>
             </button>
           </div>
         </div>
@@ -411,6 +453,85 @@ textarea:focus {
   height: 4px;
   background: #ffffff;
   border-radius: 50%;
+}
+
+/* Success State */
+.success-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+  text-align: center;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #ffffff;
+  font-size: 40px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  box-shadow: 0 12px 30px rgba(34, 197, 94, 0.3);
+  animation: success-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes success-pop {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.success-state h2 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px 0;
+}
+
+.success-state p {
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+  max-width: 400px;
+}
+
+/* Error Message */
+.error-msg {
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  padding: 10px 16px;
+  background: #fef2f2;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+}
+
+/* Button States */
+.send-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 1024px) {

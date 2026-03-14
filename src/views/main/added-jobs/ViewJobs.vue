@@ -12,7 +12,6 @@ import {
   Plus,
   LayoutGrid,
   List,
-  Pencil,
   Loader2,
 } from 'lucide-vue-next'
 import { apiGet, apiPostForm, END_POINTS } from '../../../services/config/api'
@@ -154,13 +153,6 @@ async function toggleJob(item: ApiJob) {
   }
 }
 
-/** Edit job (status === 0 only) */
-function handleEdit(item: ApiJob) {
-  jobStore.setEditingJob({ ...item })
-  jobStore.clearAddJob()
-  emit('navigate', 'job-summary')
-}
-
 /** Invite drivers */
 function handleInvite(item: ApiJob) {
   if (userStore.showSubscriptionModel && userStore.isTransporter) {
@@ -284,7 +276,7 @@ onMounted(() => {
             {{ getSubscriptionType(job) }}
           </div>
 
-          <!-- Card Top: Title + Edit + Toggle -->
+          <!-- Card Top: Title + Toggle -->
           <div class="card-top">
             <div class="card-title-area">
               <h3 class="job-title">{{ job.job_title || 'Untitled Job' }}</h3>
@@ -295,14 +287,6 @@ onMounted(() => {
               </div>
             </div>
             <div class="card-actions">
-              <button
-                v-if="!isApproved(job)"
-                class="edit-btn"
-                @click.stop="handleEdit(job)"
-                title="Edit Job"
-              >
-                <Pencil :size="16" />
-              </button>
               <button
                 class="toggle-switch"
                 :class="{ on: isActive(job) }"
@@ -763,25 +747,6 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-}
-
-.edit-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: none;
-  background: rgba(0, 0, 0, 0.04);
-  color: #64748b;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.edit-btn:hover {
-  background: #eff6ff;
-  color: #1e40af;
 }
 
 .job-title {

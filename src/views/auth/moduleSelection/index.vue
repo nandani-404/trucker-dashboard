@@ -1,36 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
 const MODULE_STORAGE_KEY = 'SELECTED_MODULE'
-
-const ROLE_DATA = [
-  // { id: 'driver', label: 'Driver', color: '#4A90E2', module: 'hiring' },
-  { id: 'transporter', label: 'Transporter', color: '#F5A623', module: 'hiring' },
-//   { id: 'foreman', label: 'Driver Foreman', color: '#9013FE', module: 'foreman' },
-//   { id: 'association', label: 'Driver Association', color: '#E74C3C', module: 'association' },
-//   { id: 'dhaba', label: 'Dhaba Sathi', color: '#2ECC71', module: 'dhaba' },
-//   { id: 'puncture', label: 'Puncture Point', color: '#F1C40F', module: 'puncture_shop' },
-//   { id: 'shipper', label: 'Shipper', color: '#FF4081', module: 'shipper' },
-]
-
-const selectedRole = ref<string | null>(null)
 
 const emit = defineEmits<{
   back: []
   'role-selected': [roleId: string, module: string]
 }>()
 
-const handleRoleSelect = (roleId: string) => {
-  selectedRole.value = roleId
-}
-
 const handleContinue = () => {
-  if (!selectedRole.value) return
-  const roleData = ROLE_DATA.find((r) => r.id === selectedRole.value)
-  if (roleData?.module) {
-    localStorage.setItem(MODULE_STORAGE_KEY, roleData.module)
-  }
-  emit('role-selected', selectedRole.value, roleData?.module ?? 'hiring')
+  localStorage.setItem(MODULE_STORAGE_KEY, 'hiring')
+  emit('role-selected', 'transporter', 'hiring')
 }
 
 const handleBack = () => {
@@ -40,165 +18,187 @@ const handleBack = () => {
 
 <template>
   <div class="module-selection">
-    <header class="nav-header">
-      <button type="button" class="back-btn" @click="handleBack" aria-label="Go back">
-        ← Back
-      </button>
-    </header>
-
-    <main class="content">
-      <div class="header">
-        <h1 class="title">
-          Choose your <span class="accent">role</span>
-        </h1>
-        <p class="subtitle">
-          Select the option that best describes you to get started.
-        </p>
-      </div>
-
-      <div class="grid">
-        <button
-          v-for="item in ROLE_DATA"
-          :key="item.id"
-          type="button"
-          class="pill"
-          :class="{ selected: selectedRole === item.id }"
-          :style="
-            selectedRole === item.id
-              ? { backgroundColor: item.color, borderColor: item.color }
-              : {}
-          "
-          @click="handleRoleSelect(item.id)"
-        >
-          {{ item.label }}
+    <img src="../../../assets/logo/logotrick.png" alt="TruckMitr Logo" class="top-logo" />
+    <main class="auth-card">
+      <header class="nav-header">
+        <button type="button" class="back-btn" @click="handleBack" aria-label="Go back">
+          ← Back
         </button>
+      </header>
+
+      <div class="content">
+        <div class="header">
+          <h1 class="title">
+            Welcome to <span class="accent">TruckMitr</span>
+          </h1>
+          <p class="subtitle">
+            Continue as Transporter to access your dashboard
+          </p>
+        </div>
+
+        <footer class="footer">
+          <button type="button" class="continue-btn" @click="handleContinue">
+            Continue as Transporter
+            <span class="arrow">→</span>
+          </button>
+        </footer>
       </div>
     </main>
-
-    <footer v-if="selectedRole" class="footer">
-      <button type="button" class="continue-btn" @click="handleContinue">
-        Continue
-        <span class="arrow">→</span>
-      </button>
-    </footer>
   </div>
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 .module-selection {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
-  background: #fff;
-  font-family: system-ui, -apple-system, sans-serif;
+  align-items: center;
+  justify-content: flex-end;
+  background-image: url('../../../assets/images/login-bg/9169170290.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 24px 12vw;
+  font-family: 'Inter', sans-serif;
+  position: relative;
+}
+
+.top-logo {
+  position: absolute;
+  top: 24px;
+  right: 3vw;
+  height: 85px;
+  object-fit: contain;
+  z-index: 10;
+}
+
+@media (max-width: 1024px) {
+  .module-selection {
+    padding: 24px 8vw;
+  }
+}
+
+@media (max-width: 768px) {
+  .module-selection {
+    justify-content: center;
+    padding: 24px;
+    background-position: right;
+  }
+  .top-logo {
+    top: 24px;
+    right: 24px;
+    height: 60px;
+  }
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 48px;
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
 
 .nav-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
+  margin-bottom: 24px;
 }
 
 .back-btn {
-  background: none;
-  border: none;
-  font-size: 15px;
-  color: #333;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 1);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
   cursor: pointer;
-  padding: 6px 0;
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .back-btn:hover {
-  color: #000;
+  background: #ffffff;
+  color: #1e293b;
+  transform: translateY(-1px);
 }
 
 .content {
-  flex: 1;
-  padding: 24px 20px 100px;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
-  margin-bottom: 28px;
+  margin-bottom: 32px;
+  text-align: center;
 }
 
 .title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1.3;
-  margin: 0 0 10px 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.2;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
 }
 
 .accent {
-  color: #3D5EE1;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .subtitle {
-  font-size: 15px;
-  color: #666;
+  font-size: 16px;
+  color: #64748b;
   line-height: 1.5;
   margin: 0;
 }
 
-.grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.pill {
-  padding: 12px 22px;
-  border-radius: 50px;
-  border: 1px solid #e5e5e5;
-  background: #fff;
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.pill:hover {
-  border-color: #ccc;
-  background: #fafafa;
-}
-
-.pill.selected {
-  color: #fff;
-  font-weight: 600;
-}
-
 .footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 16px 20px 24px;
-  background: #fff;
-  border-top: 1px solid #eee;
+  margin-top: 32px;
 }
 
 .continue-btn {
   width: 100%;
-  height: 52px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  color: #ffffff;
   border: none;
-  border-radius: 26px;
-  background: #000080;
-  color: #fff;
+  border-radius: 14px;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 128, 0.25);
+  gap: 12px;
+  letter-spacing: 0.5px;
 }
 
 .continue-btn:hover {
-  background: #0000a0;
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+  box-shadow: 0 12px 25px rgba(37, 99, 235, 0.35);
+  transform: translateY(-2px);
+}
+
+.continue-btn:active {
+  transform: translateY(0);
 }
 
 .arrow {
-  font-size: 18px;
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+.continue-btn:hover .arrow {
+  transform: translateX(4px);
 }
 </style>

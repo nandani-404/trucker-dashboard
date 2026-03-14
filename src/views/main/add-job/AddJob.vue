@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ArrowLeft, PlusCircle, CheckCircle2, Briefcase, Truck, IndianRupee, FileText } from 'lucide-vue-next'
+import { ArrowLeft, PlusCircle, CheckCircle2, Briefcase, Truck, IndianRupee, FileText, Loader2 } from 'lucide-vue-next'
 import { fetchSubscriptionDetails } from '../../../services/subscription/subscriptionCheck'
 import { apiGet } from '../../../services/config/api'
 import { END_POINTS } from '../../../services/config/api'
@@ -135,8 +135,37 @@ const form = ref({
   description: '',
   truckCondition: '',
   deadline: '',
-  consent: false
+  consent: true
 })
+
+const consentModalVisible = ref(false)
+const consentModalContent = ref('')
+const consentModalLoading = ref(false)
+
+const openConsentModal = async () => {
+  consentModalVisible.value = true
+  consentModalLoading.value = true
+  try {
+    const res: any = await apiGet(END_POINTS.TRANSPORTER_CONSENT)
+    const html = typeof res?.data === 'string' ? res.data : res?.data?.content
+    if (res?.status && html) {
+      consentModalContent.value = html
+    } else {
+      consentModalContent.value = '<p>Failed to load consent. Please try again.</p>'
+    }
+  } catch (err) {
+    consentModalContent.value = '<p>Something went wrong loading consent.</p>'
+  } finally {
+    consentModalLoading.value = false
+  }
+}
+
+const closeConsentModal = () => {
+  consentModalVisible.value = false
+  setTimeout(() => {
+    consentModalContent.value = ''
+  }, 300)
+}
 
 const vehicleTypes = [
   'Cargo Truck (Open)', 'Container Truck', 'Tipper Trucks', 
@@ -172,7 +201,7 @@ const toggleSkill = (skill: string) => {
 
 const goToSummary = () => {
   if (!form.value.consent) {
-    alert('Please agree to the consent before posting.')
+    alert('Please agree to term and contidition')
     return
   }
   if (!form.value.title?.trim()) {
@@ -543,22 +572,41 @@ const goToSummary = () => {
         <!-- Consent -->
         <div class="consent-block">
           <label class="checkbox-label">
-            <input type="checkbox" v-model="form.consent" required />
+            <input type="checkbox" v-model="form.consent" />
             <span class="checkmark"></span>
-            <span class="consent-text">I agree to the Truckmitr Transporter consent for job posting & data sharing which will be visible to drivers.</span>
+            <span class="consent-text">
+              I agree to the <a href="#" class="link" @click.prevent="openConsentModal">Truckmitr Transporter consent for job posting & data sharing</a> which will be visible to drivers.
+            </span>
           </label>
         </div>
 
-        <!-- Submit -->
         <div class="submit-action">
           <button type="submit" class="submit-btn">
             <CheckCircle2 :size="18" style="margin-right:8px;" />
             Review Job
           </button>
         </div>
-
       </form>
     </div>
+
+    <!-- Consent Modal -->
+    <Teleport to="body">
+      <div v-if="consentModalVisible" class="policy-overlay" @click.self="closeConsentModal">
+        <div class="policy-modal">
+          <div class="policy-header">
+            <h3>Consent & Terms</h3>
+            <button class="close-btn" @click="closeConsentModal">✕</button>
+          </div>
+          <div class="policy-body">
+            <div v-if="consentModalLoading" class="loading-state">
+              <Loader2 class="spin" :size="32" />
+              <p>Loading...</p>
+            </div>
+            <div v-else class="policy-html" v-html="consentModalContent"></div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -566,6 +614,63 @@ const goToSummary = () => {
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 * { box-sizing: border-box; }
+
+.link { color: #3b82f6; text-decoration: none; font-weight: 500; }
+.link:hover { text-decoration: underline; color: #1d4ed8; }
+
+/* Modal Styles */
+.policy-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+.policy-modal {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2);
+  overflow: hidden;
+  animation: modalEnter 0.3s ease-out;
+}
+@keyframes modalEnter {
+  from { opacity: 0; transform: scale(0.95) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.policy-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.policy-header h3 { margin: 0; font-size: 18px; color: #0f172a; font-weight: 700; }
+.close-btn { background: none; border: none; font-size: 20px; color: #64748b; cursor: pointer; padding: 4px; }
+.close-btn:hover { color: #0f172a; }
+.policy-body { padding: 24px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+.policy-html { font-size: 14px; line-height: 1.6; color: #334155; }
+.policy-html :deep(h1), .policy-html :deep(h2), .policy-html :deep(h3) { margin-top: 24px; margin-bottom: 12px; color: #0f172a; }
+.policy-html :deep(p) { margin-bottom: 16px; }
+.policy-html :deep(ul) { margin-bottom: 16px; padding-left: 20px; }
+.spin { animation: spin 1s linear infinite; color: #3b82f6; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #64748b;
+}
 
 .addjob-wrapper {
   padding: 32px 40px 64px;

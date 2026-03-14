@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/dka/:path*",
+      "destination": "https://driverkiawaz.truckmitr.com/api/:path*"
+    }
+  ]
+}
