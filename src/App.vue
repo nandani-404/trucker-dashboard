@@ -1,57 +1,62 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, computed } from 'vue'
+import { onMounted, onBeforeUnmount, computed, defineAsyncComponent } from 'vue'
 import { getUser, apiPost, END_POINTS } from './services/config/api'
 import { useAuthStore } from './stores/auth'
 import { useUserStore } from './stores/user'
 import { useAppStore } from './stores/app'
+
+// --- Core Auth Components (can also be split or kept depending on priority) ---
+const Login = defineAsyncComponent(() => import('./views/auth/login/Login.vue'))
+const ModuleSelection = defineAsyncComponent(() => import('./views/auth/moduleSelection/index.vue'))
+const Signup = defineAsyncComponent(() => import('./views/auth/signup/signup.vue'))
+const ProfileCompletion = defineAsyncComponent(() => import('./views/auth/profile_completion/index.vue'))
+
+// --- Main Views ---
+const Welcome = defineAsyncComponent(() => import('./views/main/home/Home.vue'))
+const Dashboard = defineAsyncComponent(() => import('./views/main/dashboard/Dashboard.vue'))
+const AddJob = defineAsyncComponent(() => import('./views/main/add-job/AddJob.vue'))
+const JobSummary = defineAsyncComponent(() => import('./views/main/job-summary/JobSummary.vue'))
+const ViewJobs = defineAsyncComponent(() => import('./views/main/added-jobs/ViewJobs.vue'))
+const FindLoad = defineAsyncComponent(() => import('./views/main/trucker/find-load/findload.vue'))
+const AddTruck = defineAsyncComponent(() => import('./views/main/trucker/trucker-add-truck/addtruck.vue'))
+const Earning = defineAsyncComponent(() => import('./views/main/trucker/earning/earning.vue'))
+const ViewApplications = defineAsyncComponent(() => import('./views/main/transporter-applied-jobs/ViewApplications.vue'))
+const AddDriver = defineAsyncComponent(() => import('./views/main/trucker/add-driver/adddriver.vue'))
+const DriverList = defineAsyncComponent(() => import('./views/main/trucker/add-driver/driver-list/driverlist.vue'))
+const Profile = defineAsyncComponent(() => import('./views/main/trucker/trucker-profile/profile.vue'))
+const TransporterProfile = defineAsyncComponent(() => import('./views/main/profile/Profile.vue'))
+const ProfileOverview = defineAsyncComponent(() => import('./views/main/profile-overview/ProfileOverview.vue'))
+const ProfileEdit = defineAsyncComponent(() => import('./views/main/profile-edit/ProfileEdit.vue'))
+const MyLoads = defineAsyncComponent(() => import('./views/main/trucker/my-loads/myloads.vue'))
+const PrivacyPolicy = defineAsyncComponent(() => import('./views/main/privacy-policy/PrivacyPolicy.vue'))
+const RateUs = defineAsyncComponent(() => import('./views/main/rate-us/RateUs.vue'))
+const AppSettings = defineAsyncComponent(() => import('./views/main/app-settings/AppSettings.vue'))
+const ContactUs = defineAsyncComponent(() => import('./views/main/contact-us/ContactUs.vue'))
+const Notification = defineAsyncComponent(() => import('./views/main/trucker/notification/notification.vue'))
+const BankDetail = defineAsyncComponent(() => import('./views/main/trucker/bank-detail/bankdetail.vue'))
+const DriverInvites = defineAsyncComponent(() => import('./views/main/driver-invites/DriverInvites.vue'))
+const DriverKiAwaz = defineAsyncComponent(() => import('./views/main/driver-ki-awaz/DriverKiAwaz.vue'))
+const VerifyDriver = defineAsyncComponent(() => import('./views/main/verify-driver/VerifyDriver.vue'))
+const VerifyDriverDocuments = defineAsyncComponent(() => import('./views/main/verify-driver-documents/VerifyDriverDocuments.vue'))
+const VideoInterview = defineAsyncComponent(() => import('./views/main/video-interview/VideoInterview.vue'))
+const RcCheck = defineAsyncComponent(() => import('./views/main/rc-check/RcCheck.vue'))
+const RcCheckResult = defineAsyncComponent(() => import('./views/main/rc-check-result/RcCheckResult.vue'))
+const ChallanCheck = defineAsyncComponent(() => import('./views/main/challan-check/ChallanCheck.vue'))
+const ChallanCheckResult = defineAsyncComponent(() => import('./views/main/challan-check-result/ChallanCheckResult.vue'))
+const FuelDiscount = defineAsyncComponent(() => import('./views/main/fuel-discount/FuelDiscount.vue'))
+const TmLoadMandal = defineAsyncComponent(() => import('./views/main/tm-load-mandal/TmLoadMandal.vue'))
+const InvoiceDetail = defineAsyncComponent(() => import('./views/main/trucker/invoice-detail/invoicedetail.vue'))
+const LoadDetail = defineAsyncComponent(() => import('./views/main/trucker/load-detail/loaddetail.vue'))
+const TransporterLoan = defineAsyncComponent(() => import('./views/main/transporter-loan/TransporterLoan.vue'))
+const TruckInsurance = defineAsyncComponent(() => import('./views/main/truck-insurance/TruckInsurance.vue'))
+const TruckMarketplace = defineAsyncComponent(() => import('./views/main/truck-marketplace/TruckMarketplace.vue'))
+const ActiveTrip = defineAsyncComponent(() => import('./views/main/trucker/active-trip/activetrip.vue'))
+const LiveTracking = defineAsyncComponent(() => import('./views/main/trucker/active-trip/live-tracking/livetracking.vue'))
+const MapNavigation = defineAsyncComponent(() => import('./views/main/trucker/map-navigation/navigation.vue'))
+const VehicleManagement = defineAsyncComponent(() => import('./views/main/trucker/vehicle-management/vehicle.vue'))
+const VehicleDetail = defineAsyncComponent(() => import('./views/main/trucker/vehicle-management/vehicle-detail/detail.vue'))
+
 import SubscriptionModal from './components/SubscriptionModal.vue'
-import Login from './views/auth/login/Login.vue'
-import ModuleSelection from './views/auth/moduleSelection/index.vue'
-import Signup from './views/auth/signup/signup.vue'
-import ProfileCompletion from './views/auth/profile_completion/index.vue'
-import Welcome from './views/main/home/Home.vue'
-import Dashboard from './views/main/dashboard/Dashboard.vue'
-import AddJob from './views/main/add-job/AddJob.vue'
-import JobSummary from './views/main/job-summary/JobSummary.vue'
-import ViewJobs from './views/main/added-jobs/ViewJobs.vue'
-import FindLoad from './views/main/trucker/find-load/findload.vue'
-import AddTruck from './views/main/trucker/trucker-add-truck/addtruck.vue'
-import Earning from './views/main/trucker/earning/earning.vue'
-import ViewApplications from './views/main/transporter-applied-jobs/ViewApplications.vue'
-import AddDriver from './views/main/trucker/add-driver/adddriver.vue'
-import DriverList from './views/main/trucker/add-driver/driver-list/driverlist.vue'
-import Profile from './views/main/trucker/trucker-profile/profile.vue'
-import TransporterProfile from './views/main/profile/Profile.vue'
-import ProfileOverview from './views/main/profile-overview/ProfileOverview.vue'
-import ProfileEdit from './views/main/profile-edit/ProfileEdit.vue'
-import MyLoads from './views/main/trucker/my-loads/myloads.vue'
-import PrivacyPolicy from './views/main/privacy-policy/PrivacyPolicy.vue'
-import RateUs from './views/main/rate-us/RateUs.vue'
-import AppSettings from './views/main/app-settings/AppSettings.vue'
-import ContactUs from './views/main/contact-us/ContactUs.vue'
-import Notification from './views/main/trucker/notification/notification.vue'
-import BankDetail from './views/main/trucker/bank-detail/bankdetail.vue'
-import DriverInvites from './views/main/driver-invites/DriverInvites.vue'
-import DriverKiAwaz from './views/main/driver-ki-awaz/DriverKiAwaz.vue'
-import VerifyDriver from './views/main/verify-driver/VerifyDriver.vue'
-import VerifyDriverDocuments from './views/main/verify-driver-documents/VerifyDriverDocuments.vue'
-import VideoInterview from './views/main/video-interview/VideoInterview.vue'
-import RcCheck from './views/main/rc-check/RcCheck.vue'
-import RcCheckResult from './views/main/rc-check-result/RcCheckResult.vue'
-import ChallanCheck from './views/main/challan-check/ChallanCheck.vue'
-import ChallanCheckResult from './views/main/challan-check-result/ChallanCheckResult.vue'
-import FuelDiscount from './views/main/fuel-discount/FuelDiscount.vue'
-import TmLoadMandal from './views/main/tm-load-mandal/TmLoadMandal.vue'
-import InvoiceDetail from './views/main/trucker/invoice-detail/invoicedetail.vue'
-import LoadDetail from './views/main/trucker/load-detail/loaddetail.vue'
-import TransporterLoan from './views/main/transporter-loan/TransporterLoan.vue'
-import TruckInsurance from './views/main/truck-insurance/TruckInsurance.vue'
-import TruckMarketplace from './views/main/truck-marketplace/TruckMarketplace.vue'
-import ActiveTrip from './views/main/trucker/active-trip/activetrip.vue'
-import LiveTracking from './views/main/trucker/active-trip/live-tracking/livetracking.vue'
-import MapNavigation from './views/main/trucker/map-navigation/navigation.vue'
-import VehicleManagement from './views/main/trucker/vehicle-management/vehicle.vue'
-import VehicleDetail from './views/main/trucker/vehicle-management/vehicle-detail/detail.vue'
 import AppLayout from './components/AppLayout.vue'
 
 const STORAGE_KEY = 'truckmitr_user'

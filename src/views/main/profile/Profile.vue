@@ -5,7 +5,7 @@ import {
   LogOut, MapPin, Download, Receipt, Settings, Loader2,
   CreditCard, Edit2, Heart
 } from 'lucide-vue-next'
-import html2canvas from 'html2canvas'
+// import html2canvas from 'html2canvas' (dynamically imported below)
 import { getProfileFull, getSubscriptionDetails, getInvoiceUrl } from '../../../services/profile/profileApi'
 import { BASE_URL } from '../../../services/config/api'
 import logoTrick from '../../../assets/logo/logotrick.png'
@@ -125,6 +125,7 @@ async function handleSaveCard() {
   if (!el) return
   savingCard.value = true
   try {
+    const html2canvas = (await import('html2canvas')).default
     const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null, logging: false })
     const link = document.createElement('a')
     link.download = `TruckMitr_Membership_Card_${Date.now()}.png`
