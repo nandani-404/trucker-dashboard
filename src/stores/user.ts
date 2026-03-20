@@ -62,9 +62,19 @@ export const useUserStore = defineStore('user', {
     setSubscriptionDetails(payload: {
       showSubscriptionModel?: boolean
       hasActiveSubscription?: boolean
+      hasTransporter499?: boolean
       [key: string]: unknown
     } | null) {
-      this.subscriptionDetails = payload
+      if (payload) {
+        this.subscriptionDetails = {
+          showSubscriptionModel: payload.showSubscriptionModel ?? false,
+          hasActiveSubscription: payload.hasActiveSubscription ?? false,
+          hasTransporter499: payload.hasTransporter499 ?? false,
+          ...payload
+        }
+      } else {
+        this.subscriptionDetails = null
+      }
     },
     setSubscriptionModal(payload: boolean | { visible?: boolean; upgradeOnly?: boolean; minPrice?: number }) {
       if (typeof payload === 'object' && payload !== null) {
@@ -95,6 +105,25 @@ export const useUserStore = defineStore('user', {
         }
         return null
       }
+    },
+    switchRole() {
+      if (!this.user) return
+      const currentRole = (this.user.role || '').toLowerCase()
+      let newRole = 'Transporter'
+      
+      // Toggle logic: if driver/foreman/association, switch to Transporter. 
+      // If anything else (like transporter), switch to Driver.
+      if (['driver', 'foreman', 'association'].includes(currentRole)) {
+        newRole = 'Transporter'
+      } else {
+        newRole = 'Driver'
+      }
+      
+      this.user = {
+        ...this.user,
+        role: newRole
+      }
+      setUser(this.user)
     },
     reset() {
       this.user = null

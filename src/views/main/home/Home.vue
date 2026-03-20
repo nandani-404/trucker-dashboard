@@ -16,6 +16,7 @@ import { END_POINTS, BASE_URL } from '../../../services/config/api'
 import { useUserStore } from '../../../stores/user'
 import { useAppStore } from '../../../stores/app'
 import type { UserData } from '../../../stores/user'
+import TruckerHome from '../trucker/trucker-home/TruckerHome.vue'
 
 const props = defineProps<{
   user: UserData | null
@@ -36,9 +37,7 @@ const isDriver = computed(() =>
 
 const isTransporter = computed(() => !isDriver.value)
 
-const displayName = computed(() =>
-  (profileData.value?.name as string) || (profileData.value?.name_eng as string) || props.user?.name || 'User'
-)
+// displayName removed
 
 onMounted(async () => {
   try {
@@ -118,7 +117,6 @@ const handleAction = (itemName: string) => {
     'Get Digital Address Check': 'dashboard',
     'Job Invite by Transporter': 'dashboard',
     'Call Job Manager': 'dashboard',
-    'Driver Ki Awaz': 'driver-ki-awaz',
   }
   const view = map[itemName]
   if (view) emit('navigate', view)
@@ -252,7 +250,11 @@ const bannerImageUrl = computed(() => {
 </script>
 
 <template>
-  <div class="dashboard-body">
+  <div v-if="isDriver" class="truck-mode-home">
+    <TruckerHome :user="user" @navigate="emit('navigate', $event)" />
+  </div>
+
+  <div v-else class="dashboard-body">
     <!-- Banner from API or fallback -->
     <section class="banner-section">
       <div v-if="bannerImageUrl" class="banner-image-wrapper">
@@ -260,26 +262,18 @@ const bannerImageUrl = computed(() => {
         <div class="banner-overlay" />
       </div>
       <div class="banner-content">
-        <div class="banner-tag">{{ isDriver ? 'Driver Portal' : '' }}</div>
+        <div class="banner-tag">Transporter Portal</div>
         <h2 class="banner-title">
-          {{ isDriver ? `Hi, ${displayName}` : 'Hiring Made Simple (2026)' }}
+          Hiring Made Simple (2026)
         </h2>
         <p class="banner-subtitle">
-          {{ isDriver ? 'Find jobs, get verified, and grow your career.' : 'Precision driver management. No confusion. No guesswork.' }}
+          Precision driver management. No confusion. No guesswork.
         </p>
         <button
-          v-if="!isDriver"
           class="post-job-btn"
           @click="handleAction('Add Jobs')"
         >
           Post a Job Now
-        </button>
-        <button
-          v-else
-          class="post-job-btn"
-          @click="emit('navigate', 'view-jobs')"
-        >
-          Browse Jobs
         </button>
       </div>
       <div class="banner-graphics">
@@ -323,8 +317,6 @@ const bannerImageUrl = computed(() => {
         </div>
       </section>
     </div>
-
-    <!-- Subscription modal is global in App.vue, controlled via appStore -->
   </div>
 </template>
 

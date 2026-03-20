@@ -14,16 +14,23 @@ import Dashboard from './views/main/dashboard/Dashboard.vue'
 import AddJob from './views/main/add-job/AddJob.vue'
 import JobSummary from './views/main/job-summary/JobSummary.vue'
 import ViewJobs from './views/main/added-jobs/ViewJobs.vue'
+import FindLoad from './views/main/trucker/find-load/findload.vue'
+import AddTruck from './views/main/trucker/trucker-add-truck/addtruck.vue'
+import Earning from './views/main/trucker/earning/earning.vue'
 import ViewApplications from './views/main/transporter-applied-jobs/ViewApplications.vue'
-import AddDriver from './views/main/add-driver/AddDriver.vue'
-import DriverList from './views/main/driver-list/DriverList.vue'
-import Profile from './views/main/profile/Profile.vue'
+import AddDriver from './views/main/trucker/add-driver/adddriver.vue'
+import DriverList from './views/main/trucker/add-driver/driver-list/driverlist.vue'
+import Profile from './views/main/trucker/trucker-profile/profile.vue'
+import TransporterProfile from './views/main/profile/Profile.vue'
 import ProfileOverview from './views/main/profile-overview/ProfileOverview.vue'
 import ProfileEdit from './views/main/profile-edit/ProfileEdit.vue'
+import MyLoads from './views/main/trucker/my-loads/myloads.vue'
 import PrivacyPolicy from './views/main/privacy-policy/PrivacyPolicy.vue'
 import RateUs from './views/main/rate-us/RateUs.vue'
 import AppSettings from './views/main/app-settings/AppSettings.vue'
 import ContactUs from './views/main/contact-us/ContactUs.vue'
+import Notification from './views/main/trucker/notification/notification.vue'
+import BankDetail from './views/main/trucker/bank-detail/bankdetail.vue'
 import DriverInvites from './views/main/driver-invites/DriverInvites.vue'
 import DriverKiAwaz from './views/main/driver-ki-awaz/DriverKiAwaz.vue'
 import VerifyDriver from './views/main/verify-driver/VerifyDriver.vue'
@@ -35,9 +42,16 @@ import ChallanCheck from './views/main/challan-check/ChallanCheck.vue'
 import ChallanCheckResult from './views/main/challan-check-result/ChallanCheckResult.vue'
 import FuelDiscount from './views/main/fuel-discount/FuelDiscount.vue'
 import TmLoadMandal from './views/main/tm-load-mandal/TmLoadMandal.vue'
+import InvoiceDetail from './views/main/trucker/invoice-detail/invoicedetail.vue'
+import LoadDetail from './views/main/trucker/load-detail/loaddetail.vue'
 import TransporterLoan from './views/main/transporter-loan/TransporterLoan.vue'
 import TruckInsurance from './views/main/truck-insurance/TruckInsurance.vue'
 import TruckMarketplace from './views/main/truck-marketplace/TruckMarketplace.vue'
+import ActiveTrip from './views/main/trucker/active-trip/activetrip.vue'
+import LiveTracking from './views/main/trucker/active-trip/live-tracking/livetracking.vue'
+import MapNavigation from './views/main/trucker/map-navigation/navigation.vue'
+import VehicleManagement from './views/main/trucker/vehicle-management/vehicle.vue'
+import VehicleDetail from './views/main/trucker/vehicle-management/vehicle-detail/detail.vue'
 import AppLayout from './components/AppLayout.vue'
 
 const STORAGE_KEY = 'truckmitr_user'
@@ -366,8 +380,53 @@ const handleBack = () => {
         @navigate="handleNavigate"
       />
 
-      <ViewJobs
+      <component 
+        :is="layoutUser.role.toLowerCase() === 'trucker' || layoutUser.role.toLowerCase() === 'driver' ? FindLoad : ViewJobs"
         v-else-if="appStore.currentView === 'view-jobs'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <MyLoads
+        v-else-if="appStore.currentView === 'my-loads'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <VehicleManagement
+        v-else-if="appStore.currentView === 'my-vehicles'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <VehicleDetail
+        v-else-if="appStore.currentView.startsWith('vehicle-details')"
+        :id="appStore.currentView.split('/').pop() || ''"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <AddTruck
+        v-else-if="appStore.currentView === 'add-truck'"
+        @back="handleBack"
+        @save-success="() => navigateTo('home')"
+      />
+
+      <Earning
+        v-else-if="appStore.currentView === 'earnings'"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <InvoiceDetail
+        v-else-if="appStore.currentView.startsWith('invoice-detail')"
+        :invoice-id="appStore.currentView.split('/').pop()"
+        @back="handleBack"
+      />
+
+      <LoadDetail
+        v-else-if="appStore.currentView.startsWith('load-detail')"
+        :load-id="appStore.currentView.split('/').pop()"
         @back="handleBack"
         @navigate="handleNavigate"
       />
@@ -390,7 +449,18 @@ const handleBack = () => {
         @navigate="handleNavigate"
       />
 
-      <Profile
+      <Notification
+        v-else-if="appStore.currentView === 'notification'"
+        @back="handleBack"
+      />
+
+      <BankDetail
+        v-else-if="appStore.currentView === 'bank-detail'"
+        @back="handleBack"
+      />
+
+      <component
+        :is="(layoutUser.role || '').toLowerCase() === 'transporter' ? TransporterProfile : Profile"
         v-else-if="appStore.currentView === 'profile'"
         :user="{ ...(currentUser ?? {}), id: String(currentUser?.id ?? ''), unique_id: String(currentUser?.unique_id ?? currentUser?.tm_id ?? ''), name: String(currentUser?.name ?? currentUser?.name_eng ?? ''), mobile: String(currentUser?.mobile ?? ''), email: String(currentUser?.email ?? ''), role: String(currentUser?.role ?? '') }"
         :subscription-details="userStore.subscriptionDetails"
@@ -516,6 +586,26 @@ const handleBack = () => {
         v-else-if="appStore.currentView === 'truck-marketplace'"
         @back="handleBack"
         @navigate="handleNavigate"
+      />
+
+      <ActiveTrip
+        v-else-if="appStore.currentView.startsWith('active-trip')"
+        :load-id="appStore.currentView.split('/').pop()"
+        @back="handleBack"
+        @navigate="handleNavigate"
+      />
+
+      <LiveTracking
+        v-else-if="appStore.currentView.startsWith('live-tracking')"
+        :load-id="appStore.currentView.split('/').pop()"
+        @back="handleBack"
+      />
+
+      <MapNavigation
+        v-else-if="appStore.currentView.startsWith('map-navigation')"
+        :load-id="appStore.currentView.split('/').pop()"
+        @back="handleBack"
+        @home="navigateTo('home')"
       />
 
       <div v-else class="coming-soon-page">

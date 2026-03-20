@@ -10,14 +10,15 @@ import {
   Search,
   LogOut,
   ChevronRight,
-  ChevronLeft,
   PanelLeftClose,
   PanelLeft,
-  Briefcase,
-  FileCheck,
   Video,
   Plus,
+  Bell,
+  Truck,
+  Wallet,
 } from 'lucide-vue-next'
+import { useUserStore } from '../stores/user'
 import { BASE_URL } from '../services/config/api'
 import { getProfileFull, getSubscriptionDetails } from '../services/profile/profileApi'
 import logoImg from '../assets/logo/logotrick.png'
@@ -79,6 +80,7 @@ const profileImageUrl = computed(() => {
 
 const displayRole = computed(() => {
   const r = (props.user?.role || '').toLowerCase()
+  if (isTruckerMode.value) return 'Trucker'
   const sub = subscriptionData.value
   if (r === 'shipper') return 'Transporter'
   if (r === 'transporter') {
@@ -96,18 +98,17 @@ const isDriver = computed(() =>
   ['driver', 'foreman', 'association'].includes(String(props.user?.role || '').toLowerCase())
 )
 
-const circumference = 138
 const progressOffset = computed(() => circumference - (profileCompletion.value / 100) * circumference)
+const circumference = 144.5 // 2 * pi * 23 approx 144.5
 
 const navItems = computed(() => {
   const dka = { id: 'driver-ki-awaz', label: 'Driver Ki Awaz', icon: Video }
-  if (isDriver.value) {
+  if (isTruckerMode.value) {
     return [
       { id: 'home', label: 'Home', icon: Home },
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      dka,
-      { id: 'view-jobs', label: 'Available Jobs', icon: Briefcase },
-      { id: 'view-applications', label: 'Applied Jobs', icon: FileCheck },
+      { id: 'view-jobs', label: 'Find Loads', icon: Search },
+      { id: 'add-truck', label: 'Add Truck', icon: PlusCircle },
+      { id: 'earnings', label: 'Earnings', icon: Wallet },
       { id: 'profile', label: 'Profile', icon: User },
     ]
   }
@@ -120,6 +121,26 @@ const navItems = computed(() => {
     { id: 'profile', label: 'Profile', icon: User },
   ]
 })
+
+const userStore = useUserStore()
+const isTruckerMode = computed(() => isDriver.value)
+
+const isSwitching = ref(false)
+
+const toggleMode = () => {
+  if (isSwitching.value) return
+  isSwitching.value = true
+  
+  // Localized transition timing
+  setTimeout(() => {
+    userStore.switchRole()
+    emit('navigate', 'home')
+  }, 450)
+  
+  setTimeout(() => {
+    isSwitching.value = false
+  }, 900)
+}
 
 watch(() => props.currentView, () => {
   if (mainContent.value) mainContent.value.scrollTop = 0
@@ -182,6 +203,26 @@ onMounted(fetchProfile)
             :size="14"
           />
         </button>
+
+        <!-- Premium Switch Mode Section -->
+        <div class="sidebar-mode-switcher" v-if="sidebarVisible">
+          <div class="mode-switcher-header">
+            <span class="mode-label">Switch Mode</span>
+          </div>
+          <div class="mode-toggle-card" :class="{ 'trucker-active': isTruckerMode, 'card-switching': isSwitching }" @click="toggleMode">
+            <div class="mode-indicator" :class="{ 'pulse-active': isSwitching }">
+              <span class="mode-dot"></span>
+            </div>
+            <div class="mode-texts">
+              <Transition name="mode-text-slide" mode="out-in">
+                <div :key="isTruckerMode + String(isSwitching)" class="texts-container">
+                  <span class="mode-title">{{ isSwitching ? 'Changing...' : (isTruckerMode ? 'Trucker Mode' : 'Transporter Mode') }}</span>
+                  <span class="mode-desc">{{ isSwitching ? 'Syncing profiles' : (isTruckerMode ? 'Switch to Transporter' : 'Switch to Trucker') }}</span>
+                </div>
+              </Transition>
+            </div>
+          </div>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -200,7 +241,7 @@ onMounted(fetchProfile)
     <!-- ========== RIGHT PANEL ========== -->
     <div class="right-panel">
       <!-- FIXED TOP HEADER -->
-      <header class="top-header">
+      <header class="top-header" v-if="!currentView.startsWith('live-tracking') && !currentView.startsWith('map-navigation')">
         <button
           v-if="!sidebarVisible"
           type="button"
@@ -233,9 +274,19 @@ onMounted(fetchProfile)
 
         <!-- Right Actions -->
         <div class="header-actions">
+          <!-- Add Truck (Trucker Mode) -->
+          <button
+            v-if="isTruckerMode"
+            class="add-truck-btn"
+            @click="emit('navigate', 'add-truck')"
+          >
+            <Truck :size="18" class="add-truck-icon" />
+            <span class="add-truck-text">Add Truck</span>
+          </button>
+
           <!-- Post Job CTA (transporters only) -->
           <button
-            v-if="!isDriver"
+            v-if="!isTruckerMode"
             class="post-job-btn"
             :class="{ 'btn-active': currentView === 'add-job' }"
             title="Post a New Job"
@@ -247,7 +298,9 @@ onMounted(fetchProfile)
             <span class="post-job-text">Post Job</span>
           </button>
 
+
           <button
+            v-if="!isTruckerMode"
             class="action-btn dashboard-btn"
             :class="{ 'btn-active': currentView === 'dashboard' }"
             title="Dashboard"
@@ -262,7 +315,15 @@ onMounted(fetchProfile)
             <span class="action-btn-text">Dashboard</span>
           </button>
 
+          <!-- Notification Icon (Trucker Only) -->
+          <button v-if="isTruckerMode" class="icon-action-btn" title="Notifications" @click="emit('navigate', 'notification')">
+            <Bell :size="20" />
+            <span class="notification-badge"></span>
+          </button>
+
+          <!-- WhatsApp (Transporter Only) -->
           <a
+            v-if="!isTruckerMode"
             href="https://wa.me/919254972811"
             target="_blank"
             rel="noopener noreferrer"
@@ -285,19 +346,20 @@ onMounted(fetchProfile)
             @click="emit('navigate', 'profile')"
             title="View Profile"
           >
-            <svg class="progress-ring" width="60" height="60" viewBox="0 0 50 50">
-              <circle class="ring-bg" cx="25" cy="25" r="22" />
+            <svg class="progress-ring" width="68" height="68" viewBox="0 0 50 50">
+              <circle class="ring-bg" cx="25" cy="25" r="23" />
               <circle
                 class="ring-progress"
-                cx="25" cy="25" r="22"
+                cx="25" cy="25" r="23"
                 :style="{ strokeDashoffset: progressOffset + 'px' }"
+                :class="{ 'trucker-ring': isTruckerMode }"
               />
             </svg>
             <div class="avatar-inner">
               <img v-if="profileImageUrl" :src="profileImageUrl" alt="Profile" class="avatar-img" />
-              <User v-else :size="24" color="#ff6b00" />
+              <User v-else :size="24" :color="isTruckerMode ? '#ea580c' : '#ff6b00'" />
             </div>
-            <div class="avatar-badge-pill">
+            <div class="avatar-badge-pill" :class="{ 'trucker-badge': isTruckerMode }">
               {{ profileCompletion }}%
             </div>
           </div>
@@ -470,7 +532,195 @@ onMounted(fetchProfile)
 .sidebar-footer {
   padding: 20px;
   flex-shrink: 0;
+  border-top: 1px solid #f1f5f9;
 }
+
+/* ─── Mode Switcher ─── */
+.sidebar-mode-switcher {
+  margin-top: 24px;
+  padding: 0 4px;
+}
+
+.mode-switcher-header {
+  margin-bottom: 12px;
+  padding-left: 10px;
+}
+
+.mode-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.mode-toggle-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-toggle-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.mode-indicator {
+  width: 44px;
+  height: 24px;
+  background: #cbd5e1;
+  border-radius: 12px;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.mode-dot {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mode-toggle-card.trucker-active {
+  background: #fff7ed;
+  border-color: #ffedd5;
+  box-shadow: 0 4px 15px rgba(251, 146, 60, 0.1);
+}
+
+.trucker-active .mode-indicator {
+  background: #f97316;
+}
+
+.trucker-active .mode-dot {
+  transform: translateX(20px);
+  box-shadow: 0 1px 5px rgba(249, 115, 22, 0.3);
+}
+
+.mode-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.mode-desc {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.trucker-active .mode-title {
+  color: #c2410c;
+}
+
+.trucker-active .mode-desc {
+  color: #ea580c;
+}
+
+.add-truck-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.add-truck-btn:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 50%, #9a3412 100%);
+  transform: scale(1.05);
+  box-shadow: 0 8px 30px rgba(234, 88, 12, 0.5);
+}
+
+.add-truck-btn:active {
+  transform: scale(0.97);
+}
+
+.add-truck-icon {
+  flex-shrink: 0;
+  stroke-width: 2.5px;
+}
+
+.add-truck-text {
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 768px) {
+  .add-truck-btn .add-truck-text { display: none; }
+  .add-truck-btn { padding: 10px 12px; border-radius: 14px; }
+}
+
+
+
+.icon-action-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.icon-action-btn:hover {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+.trucker-ring {
+  stroke: #ea580c !important;
+}
+
+
 
 .logout-btn {
   display: flex;
@@ -515,10 +765,16 @@ onMounted(fetchProfile)
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  background: #ffffff;
 }
 
-/* ─── Fixed Top Header ─── */
+.content-area {
+  flex: 1;
+  padding: 0;
+  background: #ffffff;
+}
+
 .top-header {
   min-height: 72px;
   background: #ffffff;
@@ -528,10 +784,8 @@ onMounted(fetchProfile)
   justify-content: space-between;
   padding: 0 32px;
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 15;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -544,7 +798,6 @@ onMounted(fetchProfile)
   font-weight: 600;
   color: #0f172a;
 }
-
 @keyframes wave {
   0%   { transform: rotate(0deg);   }
   25%  { transform: rotate(-20deg); }
@@ -677,8 +930,8 @@ onMounted(fetchProfile)
 /* Profile ring */
 .profile-avatar-container {
   position: relative;
-  width: 60px;
-  height: 60px;
+  width: 68px;
+  height: 68px;
   cursor: pointer;
   margin-left: 4px;
 }
@@ -686,21 +939,23 @@ onMounted(fetchProfile)
 .progress-ring {
   position: absolute;
   top: 0; left: 0;
+  width: 68px;
+  height: 68px;
   transform: rotate(180deg);
 }
 
 .ring-bg {
   fill: none;
   stroke: #e2e8f0;
-  stroke-width: 3;
+  stroke-width: 2.2;
 }
 
 .ring-progress {
   fill: none;
   stroke: #ff6b00; /* Vibrant Orange */
-  stroke-width: 3.5;
-  stroke-dasharray: 138;
-  stroke-dashoffset: 138;
+  stroke-width: 2.8;
+  stroke-dasharray: 144.5;
+  stroke-dashoffset: 144.5;
   stroke-linecap: round;
   transition: stroke-dashoffset 1s cubic-bezier(0.1, 0.7, 0.1, 1);
 }
@@ -716,7 +971,7 @@ onMounted(fetchProfile)
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 44px; height: 44px;
+  width: 54px; height: 54px;
   background: #f1f5f9;
   border-radius: 50%;
   display: flex;
@@ -727,17 +982,19 @@ onMounted(fetchProfile)
 
 .avatar-badge-pill {
   position: absolute;
-  bottom: 0px;
-  right: -2px;
-  background: #ff6b00;
-  color: #ffffff;
-  font-size: 10px;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  color: #10b981;
+  font-size: 8px;
   font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 8px;
-  border: 2px solid #ffffff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 1px 6px;
+  border-radius: 20px;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
   z-index: 5;
+  white-space: nowrap;
 }
 
 /* ─── Scrollable content area ─── */
@@ -777,7 +1034,7 @@ onMounted(fetchProfile)
   }
   .profile-avatar-container .progress-ring { width: 48px; height: 48px; }
   .avatar-inner { width: 36px; height: 36px; }
-  .avatar-badge-pill { font-size: 9px; padding: 1px 4px; }
+  .avatar-badge-pill { font-size: 8px; padding: 1px 4px; bottom: 0px; }
 }
 
 @media (max-width: 768px) {
@@ -833,7 +1090,7 @@ onMounted(fetchProfile)
   }
   .profile-avatar-container .progress-ring { width: 44px; height: 44px; }
   .avatar-inner { width: 32px; height: 32px; }
-  .avatar-badge-pill { font-size: 8px; padding: 1px 3px; }
+  .avatar-badge-pill { font-size: 7px; padding: 1px 3px; bottom: 0px; }
 }
 
 @media (max-width: 480px) {
@@ -923,5 +1180,114 @@ onMounted(fetchProfile)
 @media (max-width: 768px) {
   .post-job-btn .post-job-text { display: none; }
   .post-job-btn { padding: 10px 12px; border-radius: 14px; }
+}
+/* ─── Smooth Mode Switch Transition (Blinkit Style) ─── */
+.mode-toggle-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-toggle-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.mode-toggle-card.card-switching {
+  opacity: 0.85;
+  transform: scale(0.98);
+  pointer-events: none;
+}
+
+.mode-indicator {
+  width: 44px;
+  height: 24px;
+  background: #cbd5e1;
+  border-radius: 12px;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.5s ease;
+}
+
+.mode-dot {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mode-toggle-card.trucker-active {
+  background: #fff7ed;
+  border-color: #ffedd5;
+  box-shadow: 0 4px 15px rgba(251, 146, 60, 0.1);
+}
+
+.trucker-active .mode-indicator { background: #f97316; }
+.trucker-active .mode-dot { transform: translateX(20px); }
+
+.pulse-active.mode-indicator {
+  animation: bgPulse 0.8s infinite alternate;
+}
+
+@keyframes bgPulse {
+  from { opacity: 0.8; }
+  to { opacity: 1; }
+}
+
+.mode-texts {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.texts-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.mode-desc {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.trucker-active .mode-title { color: #c2410c; }
+.trucker-active .mode-desc { color: #ea580c; }
+
+/* Text Slide Animation */
+.mode-text-slide-enter-active,
+.mode-text-slide-leave-active {
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.mode-text-slide-enter-from {
+  opacity: 0;
+  transform: translateY(15px);
+}
+
+.mode-text-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-15px);
 }
 </style>

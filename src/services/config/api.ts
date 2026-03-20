@@ -1,6 +1,6 @@
 // ── Base URLs
-// export const BASE_URL = 'https://development.truckmitr.com/'
-export const BASE_URL = 'https://truckmitr.com/'
+export const BASE_URL = 'https://development.truckmitr.com/'
+// export const BASE_URL = 'https://truckmitr.com/'
 // export const BASE_URL = 'http://192.168.29.156:8000/'
 // export const BASE_URL = 'http://192.168.29.246:8000/'
 // export const BASE_URL = 'https://devtruckmitr.in/'
@@ -171,6 +171,27 @@ export const END_POINTS = {
   DKA_DELETE_POST: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/${id}`,
   DKA_USER_FEED: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/feed/user/${id}`,
   DKA_USER_DASHBOARD: (id: any) => `${DRIVER_KI_AWAZ_BASE}api/users/${id}/dashboard`,
+  TRUCKER_AVAILABLE_LOADS: 'api/trucker/available-loads',
+  TRUCKER_DASHBOARD_STATS: 'api/trucker/dashboard-stats',
+  TRUCKER_APPLIED_LOADS: 'api/trucker/applied-loads',
+  TRUCKER_APPLY_LOAD: 'api/trucker/apply-load',
+  TRUCKER_GET_VEHICLES: 'api/trucker/get-vehicles',
+  TRUCKER_GET_DRIVERS: 'api/trucker/get-drivers',
+  TRUCKER_TRACKING: (id: any) => `api/trucker/tracking?load_id=${id}`,
+  TRUCKER_TRACKING_DASHBOARD: (id: any) => `api/trucker/tracking-dashboard?load_id=${id}`,
+  TRUCKER_START_TRIP: 'api/trucker/start-trip',
+  TRUCKER_UPDATE_STATUS: 'api/trucker/update-status',
+  TRUCKER_UPDATE_LOCATION: 'api/trucker/update-location',
+  TRUCKER_UPLOAD_BUILTY: 'api/trucker/upload-builty',
+  TRUCKER_UPLOAD_POD: 'api/trucker/upload-pod',
+  TRUCKER_UPDATE_VEHICLE_NUMBER: 'api/trucker/update-vehicle-number',
+  TRUCKER_BANK_DETAILS_FETCH: 'api/bank-details',
+  TRUCKER_BANK_DETAILS_UPDATE: 'api/bank-details/update',
+  TRUCKER_PAYMENT_HISTORY: (page: any = 1) => `api/payment/payment-history?page=${page}`,
+  TRUCKER_VEHICLE_BODY_LIST: 'api/trucker/vehicle-body-list',
+  TRUCKER_VEHICLE_TYPE_LIST: 'api/trucker/vehicle-type-list',
+  TRUCKER_VERIFY_RC: 'api/kyc/rc',
+  TRUCKER_ADD_VEHICLE: 'api/trucker/add-vehicle',
 }
 
 // ── Bearer token storage
